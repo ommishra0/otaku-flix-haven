@@ -1,4 +1,3 @@
-
 export const trendingAnime = [
   {
     id: 1,
@@ -175,7 +174,7 @@ export const animeDetails = {
     id: 1,
     title: "Demon Slayer: Kimetsu no Yaiba",
     alternativeTitles: ["鬼滅の刃", "Blade of Demon Destruction"],
-    description: "It is the Taisho Period in Japan. Tanjiro, a kindhearted boy who sells charcoal for a living, finds his family slaughtered by a demon. To make matters worse, his younger sister Nezuko, the sole survivor, has been transformed into a demon herself. Though devastated by this grim reality, Tanjiro resolves to become a "demon slayer" so that he can turn his sister back into a human, and kill the demon that massacred his family.",
+    description: "It is the Taisho Period in Japan. Tanjiro, a kindhearted boy who sells charcoal for a living, finds his family slaughtered by a demon. To make matters worse, his younger sister Nezuko, the sole survivor, has been transformed into a demon herself. Though devastated by this grim reality, Tanjiro resolves to become a \"demon slayer\" so that he can turn his sister back into a human, and kill the demon that massacred his family.",
     image: "https://m.media-amazon.com/images/M/MV5BZjZjNzI5MDctY2Y4YS00NmM4LTljMmItZTFkOTExNGI3ODRhXkEyXkFqcGdeQXVyNjc3MjQzNTI@._V1_.jpg",
     bannerImage: "https://m.media-amazon.com/images/M/MV5BZjZjNzI5MDctY2Y4YS00NmM4LTljMmItZTFkOTExNGI3ODRhXkEyXkFqcGdeQXVyNjc3MjQzNTI@._V1_.jpg",
     genres: ["Action", "Fantasy", "Adventure", "Supernatural"],
