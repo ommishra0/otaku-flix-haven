@@ -1,13 +1,40 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import MainLayout from "@/components/layout/MainLayout";
+import Hero from "@/components/home/Hero";
+import AnimeSection from "@/components/home/AnimeSection";
+import GenreTags from "@/components/home/GenreTags";
+import AdBanner from "@/components/shared/AdBanner";
+import { trendingAnime, popularAnime, newReleases } from "@/data/mockData";
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <MainLayout>
+      <Hero />
+      
+      <AdBanner position="top" className="h-20 mb-8" />
+      
+      <AnimeSection 
+        title="Trending Now" 
+        viewAllLink="/trending"
+        animeList={trendingAnime}
+      />
+      
+      <AnimeSection 
+        title="Popular Anime" 
+        viewAllLink="/popular"
+        animeList={popularAnime}
+      />
+      
+      <AnimeSection 
+        title="New Releases" 
+        viewAllLink="/latest"
+        animeList={newReleases}
+      />
+      
+      <GenreTags />
+      
+      <AdBanner position="bottom" className="h-24 mt-4" />
+    </MainLayout>
   );
 };
 
