@@ -140,7 +140,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
       toast({
         title: "Anime already exists",
         description: `"${tmdbAnime.title}" is already in the database.`,
-        variant: "warning"
+        variant: "destructive"
       });
       return false;
     }
@@ -168,7 +168,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
     toast({
       title: "Success",
       description: `Added "${tmdbAnime.title}" to the database.`,
-      variant: "success"
+      variant: "default"
     });
     
     return true;
