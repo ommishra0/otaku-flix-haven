@@ -5,16 +5,9 @@ import { ChevronLeft, ChevronRight, Share, ThumbsUp, ThumbsDown, MessageSquare, 
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import AdBanner from "@/components/shared/AdBanner";
-import { animeDetails, comments } from "@/data/mockData";
-
-interface CommentProps {
-  id: number;
-  username: string;
-  content: string;
-  likes: number;
-  dislikes: number;
-  timestamp: string;
-}
+import { fetchAnimeAndEpisode, fetchComments, addComment, updateWatchHistory, likeEpisodeComment, dislikeEpisodeComment, Comment } from "@/services/episodeService";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 
 const WatchEpisode = () => {
   const { animeId, episodeId } = useParams<{ animeId: string; episodeId: string }>();
@@ -22,45 +15,95 @@ const WatchEpisode = () => {
   const [episode, setEpisode] = useState<any>(null);
   const [nextEpisode, setNextEpisode] = useState<any>(null);
   const [prevEpisode, setPrevEpisode] = useState<any>(null);
-  const [episodeComments, setEpisodeComments] = useState<CommentProps[]>([]);
+  const [episodeComments, setEpisodeComments] = useState<Comment[]>([]);
   const [commentText, setCommentText] = useState("");
   const [isLiked, setIsLiked] = useState(false);
   const [isDisliked, setIsDisliked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   
+  // Check if user is logged in
   useEffect(() => {
-    // Simulate API fetch with a slight delay
-    setTimeout(() => {
-      if (animeId && episodeId && animeDetails[Number(animeId)]) {
-        const animeData = animeDetails[Number(animeId)];
-        setAnime(animeData);
-        
-        // Find current episode
-        const currentEpisode = animeData.episodes.find((ep: any) => ep.id === Number(episodeId));
-        if (currentEpisode) {
-          setEpisode(currentEpisode);
-          
-          // Find prev episode
-          const currentIndex = animeData.episodes.findIndex((ep: any) => ep.id === Number(episodeId));
-          if (currentIndex > 0) {
-            setPrevEpisode(animeData.episodes[currentIndex - 1]);
-          }
-          
-          // Find next episode
-          if (currentIndex < animeData.episodes.length - 1) {
-            setNextEpisode(animeData.episodes[currentIndex + 1]);
-          }
-          
-          // Get comments
-          if (comments[Number(episodeId)]) {
-            setEpisodeComments(comments[Number(episodeId)]);
-          }
-        }
+    const fetchUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setUser(data.user);
+    };
+    
+    fetchUser();
+    
+    // Subscribe to auth changes
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user || null);
       }
-      setIsLoading(false);
-    }, 500);
+    );
+    
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+  
+  // Load anime and episode data
+  useEffect(() => {
+    const loadData = async () => {
+      if (!animeId || !episodeId) {
+        setIsLoading(false);
+        return;
+      }
+      
+      setIsLoading(true);
+      
+      try {
+        // Fetch anime and episode data
+        const { anime: animeData, episode: episodeData, nextEpisode: next, prevEpisode: prev } = 
+          await fetchAnimeAndEpisode(animeId, episodeId);
+        
+        if (animeData) setAnime(animeData);
+        if (episodeData) setEpisode(episodeData);
+        if (next) setNextEpisode(next);
+        if (prev) setPrevEpisode(prev);
+        
+        // Fetch comments
+        const comments = await fetchComments(episodeId);
+        setEpisodeComments(comments);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        toast({
+          title: "Error",
+          description: "Could not load episode data",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    loadData();
   }, [animeId, episodeId]);
+  
+  // Track video progress
+  useEffect(() => {
+    if (!videoRef.current || !user?.id || !episodeId) return;
+    
+    const videoElement = videoRef.current;
+    
+    const handleTimeUpdate = () => {
+      const progress = Math.floor(videoElement.currentTime);
+      const isComplete = videoElement.currentTime / videoElement.duration > 0.9;
+      
+      // Update watch history every 10 seconds to avoid too many requests
+      if (progress % 10 === 0 || isComplete) {
+        updateWatchHistory(user.id, episodeId, progress, isComplete);
+      }
+    };
+    
+    videoElement.addEventListener('timeupdate', handleTimeUpdate);
+    
+    return () => {
+      videoElement.removeEventListener('timeupdate', handleTimeUpdate);
+    };
+  }, [videoRef, user, episodeId]);
   
   const handleLike = () => {
     if (isLiked) {
@@ -80,17 +123,76 @@ const WatchEpisode = () => {
     }
   };
   
-  const handleComment = (e: React.FormEvent) => {
+  const handleCommentLike = async (commentId: string, isCurrentlyLiked: boolean) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to like comments",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const success = await likeEpisodeComment(commentId, isCurrentlyLiked);
+    
+    if (success) {
+      setEpisodeComments(comments => 
+        comments.map(comment => 
+          comment.id === commentId 
+            ? { 
+                ...comment, 
+                likes: isCurrentlyLiked ? comment.likes - 1 : comment.likes + 1 
+              } 
+            : comment
+        )
+      );
+    }
+  };
+  
+  const handleCommentDislike = async (commentId: string, isCurrentlyDisliked: boolean) => {
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to dislike comments",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const success = await dislikeEpisodeComment(commentId, isCurrentlyDisliked);
+    
+    if (success) {
+      setEpisodeComments(comments => 
+        comments.map(comment => 
+          comment.id === commentId 
+            ? { 
+                ...comment, 
+                dislikes: isCurrentlyDisliked ? comment.dislikes - 1 : comment.dislikes + 1 
+              } 
+            : comment
+        )
+      );
+    }
+  };
+  
+  const handleComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (commentText.trim()) {
-      const newComment: CommentProps = {
-        id: Date.now(),
-        username: "Guest",
-        content: commentText,
-        likes: 0,
-        dislikes: 0,
-        timestamp: new Date().toISOString()
-      };
+    
+    if (!commentText.trim()) return;
+    
+    if (!user) {
+      toast({
+        title: "Authentication required",
+        description: "You must be logged in to comment",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Add comment to database
+    const newComment = await addComment(user.id, episodeId as string, commentText);
+    
+    if (newComment) {
       setEpisodeComments([newComment, ...episodeComments]);
       setCommentText("");
     }
@@ -151,9 +253,9 @@ const WatchEpisode = () => {
           ref={videoRef}
           className="w-full h-full hidden"
           controls
-          poster={episode.thumbnail}
+          poster={episode.thumbnail_url}
         >
-          <source src={episode.videoUrl} type="video/mp4" />
+          <source src={episode.video_url} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
       </div>
@@ -240,11 +342,12 @@ const WatchEpisode = () => {
               <textarea
                 value={commentText}
                 onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Add a comment..."
+                placeholder={user ? "Add a comment..." : "Login to comment"}
                 className="w-full bg-anime-light p-4 rounded-md border border-gray-700 focus:border-anime-primary focus:outline-none focus:ring-1 focus:ring-anime-primary min-h-[100px]"
+                disabled={!user}
               />
               <div className="flex justify-end mt-2">
-                <Button type="submit" disabled={!commentText.trim()}>
+                <Button type="submit" disabled={!commentText.trim() || !user}>
                   Post Comment
                 </Button>
               </div>
@@ -252,18 +355,38 @@ const WatchEpisode = () => {
             
             <div className="space-y-6">
               {episodeComments.map((comment) => (
-                <div key={comment.id} className="bg-anime-light p-4 rounded-md">
+                <div 
+                  key={comment.id} 
+                  className={`p-4 rounded-md ${
+                    comment.is_highlighted 
+                      ? 'bg-anime-primary/20 border border-anime-primary/50' 
+                      : 'bg-anime-light'
+                  }`}
+                >
                   <div className="flex justify-between items-start mb-2">
-                    <div className="font-semibold">{comment.username}</div>
+                    <div className="font-semibold flex items-center gap-2">
+                      {comment.username}
+                      {comment.is_pinned && (
+                        <span className="bg-anime-primary/20 text-anime-primary px-2 py-0.5 text-xs rounded-full">
+                          Pinned
+                        </span>
+                      )}
+                    </div>
                     <div className="text-sm text-gray-400">{formatDate(comment.timestamp)}</div>
                   </div>
                   <p className="text-gray-300 mb-3">{comment.content}</p>
                   <div className="flex items-center gap-4 text-sm">
-                    <button className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors">
+                    <button 
+                      className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+                      onClick={() => handleCommentLike(comment.id, false)}
+                    >
                       <ThumbsUp size={14} />
                       <span>{comment.likes}</span>
                     </button>
-                    <button className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors">
+                    <button 
+                      className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors"
+                      onClick={() => handleCommentDislike(comment.id, false)}
+                    >
                       <ThumbsDown size={14} />
                       <span>{comment.dislikes}</span>
                     </button>
