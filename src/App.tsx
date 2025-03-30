@@ -42,6 +42,26 @@ const App = () => (
                 <AdminDashboard />
               </ProtectedAdminRoute>
             } />
+            <Route path="/admin/anime" element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/episodes" element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/categories" element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/settings" element={
+              <ProtectedAdminRoute>
+                <AdminDashboard />
+              </ProtectedAdminRoute>
+            } />
             
             {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
