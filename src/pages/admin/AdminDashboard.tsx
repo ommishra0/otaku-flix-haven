@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, AreaChart, PieChart } from "@/components/ui/chart";
+import { BarChart, AreaChart, PieChart } from "@/components/ui/charts";
 import { Film, Users, Tv, Calendar, TrendingUp, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
