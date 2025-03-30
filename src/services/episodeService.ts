@@ -200,11 +200,24 @@ export const updateWatchHistory = async (userId: string | null, episodeId: strin
 
 export const likeEpisodeComment = async (commentId: string, currentLiked: boolean) => {
   try {
+    // If currently liked, decrement count, otherwise increment
+    const newLikeCount = currentLiked ? -1 : 1;
+    
+    // Get current likes count
+    const { data: commentData, error: fetchError } = await supabase
+      .from('comments')
+      .select('likes')
+      .eq('id', commentId)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    // Calculate new value and update
+    const updatedLikes = (commentData.likes || 0) + newLikeCount;
+    
     const { error } = await supabase
       .from('comments')
-      .update({ 
-        likes: currentLiked ? supabase.rpc('decrement', { x: 1 }) : supabase.rpc('increment', { x: 1 }) 
-      })
+      .update({ likes: updatedLikes })
       .eq('id', commentId);
 
     if (error) throw error;
@@ -217,11 +230,24 @@ export const likeEpisodeComment = async (commentId: string, currentLiked: boolea
 
 export const dislikeEpisodeComment = async (commentId: string, currentDisliked: boolean) => {
   try {
+    // If currently disliked, decrement count, otherwise increment
+    const newDislikeCount = currentDisliked ? -1 : 1;
+    
+    // Get current dislikes count
+    const { data: commentData, error: fetchError } = await supabase
+      .from('comments')
+      .select('dislikes')
+      .eq('id', commentId)
+      .single();
+    
+    if (fetchError) throw fetchError;
+    
+    // Calculate new value and update
+    const updatedDislikes = (commentData.dislikes || 0) + newDislikeCount;
+    
     const { error } = await supabase
       .from('comments')
-      .update({ 
-        dislikes: currentDisliked ? supabase.rpc('decrement', { x: 1 }) : supabase.rpc('increment', { x: 1 }) 
-      })
+      .update({ dislikes: updatedDislikes })
       .eq('id', commentId);
 
     if (error) throw error;
