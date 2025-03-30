@@ -1,7 +1,7 @@
-
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { 
   FileVideo, 
   Home, 
@@ -23,47 +23,9 @@ interface AdminLayoutProps {
 const AdminLayout = ({ children, title }: AdminLayoutProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [adminUser, setAdminUser] = useState<any>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
-  
-  const checkAdminSession = () => {
-    const session = localStorage.getItem("adminSession");
-    if (!session) {
-      toast({
-        title: "Authentication required",
-        description: "Please log in to access the admin panel",
-        variant: "destructive",
-      });
-      navigate("/admin/login");
-      return;
-    }
-    
-    try {
-      const user = JSON.parse(session);
-      if (!user.authenticated || user.role !== "admin") {
-        throw new Error("Not authenticated");
-      }
-      setAdminUser(user);
-    } catch {
-      localStorage.removeItem("adminSession");
-      navigate("/admin/login");
-    }
-  };
-  
-  useEffect(() => {
-    checkAdminSession();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  
-  const handleLogout = () => {
-    localStorage.removeItem("adminSession");
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out",
-    });
-    navigate("/admin/login");
-  };
+  const { adminUser, logoutAdmin } = useAdminAuth();
   
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -111,7 +73,7 @@ const AdminLayout = ({ children, title }: AdminLayoutProps) => {
               variant="ghost" 
               size="icon"
               className="text-gray-400 hover:text-white"
-              onClick={handleLogout}
+              onClick={logoutAdmin}
             >
               <LogOut size={20} />
             </Button>

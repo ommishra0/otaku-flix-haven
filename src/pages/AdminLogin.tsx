@@ -1,55 +1,45 @@
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { Shield, LogIn } from "lucide-react";
 
 const AdminLogin = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  const { loginAdmin } = useAdminAuth();
+
+  // Get the page they were trying to access before being redirected to login
+  const from = location.state?.from?.pathname || "/admin/dashboard";
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
-    // Simulate login delay
-    setTimeout(() => {
-      // For demo purposes, accept any admin credentials
-      // In the real app, this would verify with Supabase Auth
-      if (email && password) {
-        // Set dummy admin session
-        localStorage.setItem("adminSession", JSON.stringify({ 
-          email, 
-          role: "admin", 
-          authenticated: true 
-        }));
-        
-        toast({
-          title: "Login successful",
-          description: "Welcome to the admin panel",
-        });
-        
-        navigate("/admin/dashboard");
-      } else {
-        toast({
-          title: "Login failed",
-          description: "Please enter valid credentials",
-          variant: "destructive",
-        });
-      }
-      
+    try {
+      await loginAdmin(email, password);
+      navigate(from, { replace: true });
+    } catch (error) {
+      // Error is already handled in the context
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-anime-darker py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-anime-light p-8 rounded-lg shadow-lg">
         <div className="text-center">
+          <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-anime-primary bg-opacity-10 mb-4">
+            <Shield className="h-8 w-8 text-anime-primary" />
+          </div>
           <h1 className="text-2xl font-bold text-anime-primary mb-2">OtakuFlix Admin</h1>
           <p className="text-gray-400">Sign in to access the admin panel</p>
         </div>
@@ -113,10 +103,20 @@ const AdminLogin = () => {
           <div>
             <Button
               type="submit"
-              className="anime-btn-primary w-full py-6"
+              className="anime-btn-primary w-full py-6 flex items-center justify-center gap-2"
               disabled={isLoading}
             >
-              {isLoading ? "Signing in..." : "Sign in"}
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                <>
+                  <LogIn size={18} />
+                  <span>Sign in</span>
+                </>
+              )}
             </Button>
           </div>
           
