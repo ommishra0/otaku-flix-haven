@@ -3,12 +3,28 @@ import { useState, useEffect } from "react";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, AreaChart, PieChart } from "@/components/ui/charts";
-import { Film, Users, Tv, Calendar, TrendingUp, Eye } from "lucide-react";
+import { Film, Users, Tv, Calendar, TrendingUp, Eye, Search, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import { 
+  getTrendingAnime, 
+  searchAnime, 
+  importAnimeToDatabase, 
+  TMDBAnime 
+} from "@/services/tmdbService";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const AdminDashboard = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
+  const [popularityThreshold, setPopularityThreshold] = useState([50]);
+  const [ratingThreshold, setRatingThreshold] = useState([7.5]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<TMDBAnime[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
   
   useEffect(() => {
     // Simulate loading data
@@ -22,65 +38,58 @@ const AdminDashboard = () => {
     
     return () => clearTimeout(timer);
   }, [toast]);
+
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
+    
+    setIsSearching(true);
+    try {
+      const results = await searchAnime(searchQuery);
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Search error:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleImport = async (anime: TMDBAnime) => {
+    setIsImporting(true);
+    try {
+      const success = await importAnimeToDatabase({
+        ...anime,
+        popularity: anime.popularity > popularityThreshold[0] ? anime.popularity : popularityThreshold[0],
+        vote_average: anime.vote_average > ratingThreshold[0] ? anime.vote_average : ratingThreshold[0]
+      });
+      
+      if (success) {
+        // Remove from search results if successfully imported
+        setSearchResults(prev => prev.filter(item => item.id !== anime.id));
+      }
+    } catch (error) {
+      console.error("Import error:", error);
+    } finally {
+      setIsImporting(false);
+    }
+  };
   
   // Mock data for charts
   const barChartData = [
-    {
-      name: "Jan",
-      views: 4000,
-    },
-    {
-      name: "Feb",
-      views: 3000,
-    },
-    {
-      name: "Mar",
-      views: 2000,
-    },
-    {
-      name: "Apr",
-      views: 2780,
-    },
-    {
-      name: "May",
-      views: 1890,
-    },
-    {
-      name: "Jun",
-      views: 2390,
-    },
-    {
-      name: "Jul",
-      views: 3490,
-    },
+    { name: "Jan", views: 4000 },
+    { name: "Feb", views: 3000 },
+    { name: "Mar", views: 2000 },
+    { name: "Apr", views: 2780 },
+    { name: "May", views: 1890 },
+    { name: "Jun", views: 2390 },
+    { name: "Jul", views: 3490 },
   ];
   
   const areaChartData = [
-    {
-      name: "Week 1",
-      users: 400,
-      viewers: 240,
-    },
-    {
-      name: "Week 2",
-      users: 300,
-      viewers: 139,
-    },
-    {
-      name: "Week 3",
-      users: 200,
-      viewers: 980,
-    },
-    {
-      name: "Week 4",
-      users: 278,
-      viewers: 390,
-    },
-    {
-      name: "Week 5",
-      users: 189,
-      viewers: 480,
-    },
+    { name: "Week 1", users: 400, viewers: 240 },
+    { name: "Week 2", users: 300, viewers: 139 },
+    { name: "Week 3", users: 200, viewers: 980 },
+    { name: "Week 4", users: 278, viewers: 390 },
+    { name: "Week 5", users: 189, viewers: 480 },
   ];
   
   const pieChartData = [
@@ -103,6 +112,136 @@ const AdminDashboard = () => {
   
   return (
     <AdminLayout title="Dashboard">
+      {/* TMDB Scraper Section */}
+      <Card className="bg-anime-light border-gray-800 mb-8">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Download className="h-5 w-5 text-anime-primary" />
+            <span>TMDB Anime Scraper</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-sm font-medium mb-2">Popularity Threshold</h3>
+                <div className="space-y-2">
+                  <Slider
+                    value={popularityThreshold}
+                    min={0}
+                    max={100}
+                    step={1}
+                    onValueChange={setPopularityThreshold}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-400">
+                    Anime with popularity above {popularityThreshold[0]} will be marked as trending
+                  </p>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium mb-2">Rating Threshold</h3>
+                <div className="space-y-2">
+                  <Slider
+                    value={ratingThreshold}
+                    min={0}
+                    max={10}
+                    step={0.1}
+                    onValueChange={setRatingThreshold}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-400">
+                    Anime with rating above {ratingThreshold[0]} will be marked as popular
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <Input
+                  placeholder="Search for anime to import..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="bg-anime-dark border-gray-700"
+                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                />
+              </div>
+              <Button 
+                onClick={handleSearch}
+                disabled={isSearching || !searchQuery.trim()}
+                className="bg-anime-primary hover:bg-anime-primary/90"
+              >
+                {isSearching ? (
+                  <>
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                    Searching...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-4 h-4 mr-2" />
+                    Search TMDB
+                  </>
+                )}
+              </Button>
+            </div>
+            
+            {searchResults.length > 0 && (
+              <div className="mt-4 overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Poster</TableHead>
+                      <TableHead>Title</TableHead>
+                      <TableHead>Rating</TableHead>
+                      <TableHead>Year</TableHead>
+                      <TableHead>Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {searchResults.map((anime) => (
+                      <TableRow key={anime.id}>
+                        <TableCell>
+                          {anime.poster_path ? (
+                            <img 
+                              src={anime.poster_path} 
+                              alt={anime.title} 
+                              className="w-12 h-16 object-cover rounded-sm"
+                            />
+                          ) : (
+                            <div className="w-12 h-16 bg-anime-dark flex items-center justify-center rounded-sm">
+                              <Film size={20} className="text-gray-500" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="font-medium">{anime.title}</TableCell>
+                        <TableCell>{anime.vote_average.toFixed(1)}</TableCell>
+                        <TableCell>
+                          {anime.release_date 
+                            ? new Date(anime.release_date).getFullYear() 
+                            : 'Unknown'}
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            className="bg-anime-primary hover:bg-anime-primary/90"
+                            onClick={() => handleImport(anime)}
+                            disabled={isImporting}
+                          >
+                            {isImporting ? "Importing..." : "Import"}
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card className="bg-anime-light border-gray-800">
