@@ -73,7 +73,7 @@ const customAnimeSchema = z.object({
 const episodeSchema = z.object({
   animeId: z.string().uuid({ message: "Please select an anime" }),
   title: z.string().min(2, { message: "Title must be at least 2 characters" }),
-  number: z.string().transform(val => parseInt(val)),
+  number: z.coerce.number(), // Fixed: Use coerce.number() instead of string transformation
   description: z.string().optional(),
   thumbnailUrl: z.string().url({ message: "Please enter a valid thumbnail URL" }).optional().or(z.literal("")),
   embedProvider: z.string().optional(),
@@ -257,7 +257,7 @@ const AdminDashboard = () => {
         description: data.description,
         imageUrl: data.imageUrl,
         bannerImageUrl: data.bannerImageUrl,
-        releaseYear: data.releaseYear ? parseInt(data.releaseYear) : undefined,
+        releaseYear: data.releaseYear,
         type: data.type,
         status: data.status
       });
@@ -279,7 +279,7 @@ const AdminDashboard = () => {
         data.animeId,
         {
           title: data.title,
-          number: parseInt(data.number.toString()),
+          number: data.number, // Fixed: Now number is already coerced to a number
           description: data.description,
           thumbnailUrl: data.thumbnailUrl,
           embedProvider: data.embedProvider,
