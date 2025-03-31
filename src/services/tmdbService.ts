@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // TMDB API configuration
-const TMDB_API_KEY = "d1aef4ce97f1eb865be6aabf156b6775"; // Updated API key for TMDB
+const TMDB_API_KEY = "d1aef4ce97f1eb865be6aabf156b6775"; // User's TMDB API key
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const ANIME_GENRE_ID = 16; // Animation genre ID in TMDB
 
@@ -127,7 +127,7 @@ export const getAnimeDetails = async (tmdbId: number): Promise<TMDBAnime | null>
   }
 };
 
-// Function to import anime from TMDB to Supabase database
+// Function to import anime from TMDB to Supabase database - now without arbitrary thresholds
 export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boolean> => {
   try {
     // Check if anime already exists in the database by title
@@ -137,7 +137,10 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
       .eq('title', tmdbAnime.title)
       .limit(1);
     
-    if (checkError) throw checkError;
+    if (checkError) {
+      console.error("Error checking existing anime:", checkError);
+      throw checkError;
+    }
     
     if (existingAnime && existingAnime.length > 0) {
       toast.error(`"${tmdbAnime.title}" is already in the database.`);
@@ -154,15 +157,19 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
         banner_image_url: tmdbAnime.backdrop_path,
         rating: tmdbAnime.vote_average,
         release_year: tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null,
-        is_trending: false, // No arbitrary threshold
-        is_popular: false, // No arbitrary threshold
+        // No arbitrary thresholds for trending or popular flags
+        is_trending: false,
+        is_popular: false,
         type: "TV Series",
         status: "Completed"
       })
       .select('id, title')
       .single();
     
-    if (error) throw error;
+    if (error) {
+      console.error("Error importing anime to database:", error);
+      throw error;
+    }
     
     toast.success(`Added "${tmdbAnime.title}" to the database.`);
     
