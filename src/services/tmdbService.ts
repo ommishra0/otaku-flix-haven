@@ -1,9 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 // TMDB API configuration
-const TMDB_API_KEY = "3e837fc7f5b5e791b9db45c25bc2c7e4"; // This is a public API key for TMDB
+const TMDB_API_KEY = "fa97a6a1a98e78069cd497f4e9e887e5"; // Updated public API key for TMDB
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const ANIME_GENRE_ID = 16; // Animation genre ID in TMDB
 
@@ -27,7 +26,9 @@ export const getTrendingAnime = async (): Promise<TMDBAnime[]> => {
     );
     
     if (!response.ok) {
-      throw new Error("Failed to fetch trending anime");
+      const errorData = await response.json();
+      console.error("TMDB API error:", errorData);
+      throw new Error(`Failed to fetch trending anime: ${errorData.status_message || response.statusText}`);
     }
     
     const data = await response.json();
@@ -45,11 +46,7 @@ export const getTrendingAnime = async (): Promise<TMDBAnime[]> => {
     }));
   } catch (error) {
     console.error("Error fetching trending anime:", error);
-    toast({
-      title: "Error",
-      description: "Failed to fetch trending anime from TMDB",
-      variant: "destructive"
-    });
+    toast.error("Failed to fetch trending anime from TMDB");
     return [];
   }
 };
@@ -58,33 +55,40 @@ export const getTrendingAnime = async (): Promise<TMDBAnime[]> => {
 export const searchAnime = async (query: string): Promise<TMDBAnime[]> => {
   try {
     const response = await fetch(
-      `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&with_genres=${ANIME_GENRE_ID}&page=1`
+      `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&page=1`
     );
     
     if (!response.ok) {
-      throw new Error("Failed to search anime");
+      const errorData = await response.json();
+      console.error("TMDB API error:", errorData);
+      throw new Error(`Failed to search anime: ${errorData.status_message || response.statusText}`);
     }
     
     const data = await response.json();
     
-    return data.results.map((item: any) => ({
-      id: item.id,
-      title: item.name || item.original_name,
-      original_title: item.original_name,
-      poster_path: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
-      backdrop_path: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null,
-      overview: item.overview,
-      release_date: item.first_air_date,
-      vote_average: item.vote_average,
-      popularity: item.popularity
-    }));
+    // Filter results to only include animation/anime
+    return data.results
+      .filter((item: any) => 
+        // Keep only animation genre or anime-related keywords in title/overview
+        (item.genre_ids && item.genre_ids.includes(ANIME_GENRE_ID)) || 
+        item.name?.toLowerCase().includes('anime') ||
+        item.original_name?.toLowerCase().includes('anime') ||
+        item.overview?.toLowerCase().includes('anime')
+      )
+      .map((item: any) => ({
+        id: item.id,
+        title: item.name || item.original_name,
+        original_title: item.original_name,
+        poster_path: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : null,
+        backdrop_path: item.backdrop_path ? `https://image.tmdb.org/t/p/original${item.backdrop_path}` : null,
+        overview: item.overview,
+        release_date: item.first_air_date,
+        vote_average: item.vote_average,
+        popularity: item.popularity
+      }));
   } catch (error) {
     console.error("Error searching anime:", error);
-    toast({
-      title: "Error",
-      description: "Failed to search anime on TMDB",
-      variant: "destructive"
-    });
+    toast.error("Failed to search anime on TMDB");
     return [];
   }
 };
@@ -97,7 +101,9 @@ export const getAnimeDetails = async (tmdbId: number): Promise<TMDBAnime | null>
     );
     
     if (!response.ok) {
-      throw new Error("Failed to fetch anime details");
+      const errorData = await response.json();
+      console.error("TMDB API error:", errorData);
+      throw new Error(`Failed to fetch anime details: ${errorData.status_message || response.statusText}`);
     }
     
     const item = await response.json();
@@ -115,11 +121,7 @@ export const getAnimeDetails = async (tmdbId: number): Promise<TMDBAnime | null>
     };
   } catch (error) {
     console.error("Error fetching anime details:", error);
-    toast({
-      title: "Error",
-      description: "Failed to fetch anime details from TMDB",
-      variant: "destructive"
-    });
+    toast.error("Failed to fetch anime details from TMDB");
     return null;
   }
 };
@@ -137,11 +139,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
     if (checkError) throw checkError;
     
     if (existingAnime && existingAnime.length > 0) {
-      toast({
-        title: "Anime already exists",
-        description: `"${tmdbAnime.title}" is already in the database.`,
-        variant: "destructive"
-      });
+      toast.error(`"${tmdbAnime.title}" is already in the database.`);
       return false;
     }
     
@@ -154,9 +152,9 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
         image_url: tmdbAnime.poster_path,
         banner_image_url: tmdbAnime.backdrop_path,
         rating: tmdbAnime.vote_average,
-        release_year: new Date(tmdbAnime.release_date).getFullYear(),
-        is_trending: tmdbAnime.popularity > 50,
-        is_popular: tmdbAnime.vote_average > 7.5,
+        release_year: tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null,
+        is_trending: tmdbAnime.popularity > 50,  // Simple threshold for trending
+        is_popular: tmdbAnime.vote_average > 7.5, // Simple threshold for popular
         type: "TV Series",
         status: "Completed"
       })
@@ -165,20 +163,12 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
     
     if (error) throw error;
     
-    toast({
-      title: "Success",
-      description: `Added "${tmdbAnime.title}" to the database.`,
-      variant: "default"
-    });
+    toast.success(`Added "${tmdbAnime.title}" to the database.`);
     
     return true;
   } catch (error) {
     console.error("Error importing anime to database:", error);
-    toast({
-      title: "Import Failed",
-      description: "Could not import anime to database",
-      variant: "destructive"
-    });
+    toast.error("Could not import anime to database");
     return false;
   }
 };

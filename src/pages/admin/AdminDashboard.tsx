@@ -1,43 +1,100 @@
 
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, AreaChart, PieChart } from "@/components/ui/charts";
 import { Film, Users, Tv, Calendar, TrendingUp, Eye, Search, Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Slider } from "@/components/ui/slider";
 import { 
-  getTrendingAnime, 
   searchAnime, 
   importAnimeToDatabase, 
   TMDBAnime 
 } from "@/services/tmdbService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { supabase } from "@/integrations/supabase/client";
+
+// Define stats interface
+interface DashboardStats {
+  totalAnime: number;
+  totalEpisodes: number;
+  recentlyAdded: any[];
+  genreCounts: Record<string, number>;
+}
 
 const AdminDashboard = () => {
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  const [popularityThreshold, setPopularityThreshold] = useState([50]);
-  const [ratingThreshold, setRatingThreshold] = useState([7.5]);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<TMDBAnime[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   
-  useEffect(() => {
-    // Simulate loading data
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-      toast({
-        title: "Dashboard loaded",
-        description: "Welcome to the admin dashboard",
-      });
-    }, 1000);
-    
-    return () => clearTimeout(timer);
-  }, [toast]);
+  // Fetch dashboard stats from Supabase
+  const { data: stats, isLoading, error } = useQuery({
+    queryKey: ["dashboardStats"],
+    queryFn: async (): Promise<DashboardStats> => {
+      try {
+        // Get total anime count
+        const { count: animeCount, error: animeError } = await supabase
+          .from('anime')
+          .select('*', { count: 'exact', head: true });
+        
+        if (animeError) throw animeError;
+        
+        // Get total episodes count
+        const { count: episodesCount, error: episodesError } = await supabase
+          .from('episodes')
+          .select('*', { count: 'exact', head: true });
+        
+        if (episodesError) throw episodesError;
+        
+        // Get recently added anime
+        const { data: recentAnime, error: recentError } = await supabase
+          .from('anime')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(5);
+        
+        if (recentError) throw recentError;
+        
+        // Get genre distribution
+        const { data: genres, error: genreError } = await supabase
+          .from('genres')
+          .select(`
+            name,
+            anime_genres!inner(
+              anime_id
+            )
+          `);
+        
+        if (genreError) throw genreError;
+        
+        // Count anime by genre
+        const genreCounts: Record<string, number> = {};
+        genres?.forEach(genre => {
+          genreCounts[genre.name] = genre.anime_genres?.length || 0;
+        });
+        
+        return {
+          totalAnime: animeCount || 0,
+          totalEpisodes: episodesCount || 0,
+          recentlyAdded: recentAnime || [],
+          genreCounts
+        };
+      } catch (error) {
+        console.error("Error fetching dashboard stats:", error);
+        toast.error("Failed to load dashboard statistics");
+        return {
+          totalAnime: 0,
+          totalEpisodes: 0,
+          recentlyAdded: [],
+          genreCounts: {}
+        };
+      }
+    },
+    refetchInterval: 30000, // Refresh data every 30 seconds
+  });
 
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -56,11 +113,7 @@ const AdminDashboard = () => {
   const handleImport = async (anime: TMDBAnime) => {
     setIsImporting(true);
     try {
-      const success = await importAnimeToDatabase({
-        ...anime,
-        popularity: anime.popularity > popularityThreshold[0] ? anime.popularity : popularityThreshold[0],
-        vote_average: anime.vote_average > ratingThreshold[0] ? anime.vote_average : ratingThreshold[0]
-      });
+      const success = await importAnimeToDatabase(anime);
       
       if (success) {
         // Remove from search results if successfully imported
@@ -73,31 +126,29 @@ const AdminDashboard = () => {
     }
   };
   
-  // Mock data for charts
-  const barChartData = [
-    { name: "Jan", views: 4000 },
-    { name: "Feb", views: 3000 },
-    { name: "Mar", views: 2000 },
-    { name: "Apr", views: 2780 },
-    { name: "May", views: 1890 },
-    { name: "Jun", views: 2390 },
-    { name: "Jul", views: 3490 },
+  // Prepare data for charts based on actual Supabase data
+  const genreChartData = Object.entries(stats?.genreCounts || {}).map(([name, value]) => ({
+    name,
+    value
+  }));
+  
+  // Monthly views data could come from a real analytics source in the future
+  const viewsData = [
+    { name: "Jan", views: 0 },
+    { name: "Feb", views: 0 },
+    { name: "Mar", views: 0 },
+    { name: "Apr", views: 0 },
+    { name: "May", views: 0 },
+    { name: "Jun", views: 0 },
+    { name: "Jul", views: 0 },
   ];
   
-  const areaChartData = [
-    { name: "Week 1", users: 400, viewers: 240 },
-    { name: "Week 2", users: 300, viewers: 139 },
-    { name: "Week 3", users: 200, viewers: 980 },
-    { name: "Week 4", users: 278, viewers: 390 },
-    { name: "Week 5", users: 189, viewers: 480 },
-  ];
-  
-  const pieChartData = [
-    { name: "Action", value: 400 },
-    { name: "Comedy", value: 300 },
-    { name: "Drama", value: 300 },
-    { name: "Romance", value: 200 },
-    { name: "Sci-Fi", value: 100 },
+  // User activity data could come from real user analytics in the future
+  const userActivityData = [
+    { name: "Week 1", users: 0, viewers: 0 },
+    { name: "Week 2", users: 0, viewers: 0 },
+    { name: "Week 3", users: 0, viewers: 0 },
+    { name: "Week 4", users: 0, viewers: 0 },
   ];
   
   if (isLoading) {
@@ -105,6 +156,17 @@ const AdminDashboard = () => {
       <AdminLayout title="Dashboard">
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-anime-primary"></div>
+        </div>
+      </AdminLayout>
+    );
+  }
+  
+  if (error) {
+    return (
+      <AdminLayout title="Dashboard">
+        <div className="p-6 text-center">
+          <h3 className="text-xl text-red-500 mb-2">Error Loading Dashboard</h3>
+          <p className="text-gray-400">Please try refreshing the page</p>
         </div>
       </AdminLayout>
     );
@@ -121,43 +183,7 @@ const AdminDashboard = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-sm font-medium mb-2">Popularity Threshold</h3>
-                <div className="space-y-2">
-                  <Slider
-                    value={popularityThreshold}
-                    min={0}
-                    max={100}
-                    step={1}
-                    onValueChange={setPopularityThreshold}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-400">
-                    Anime with popularity above {popularityThreshold[0]} will be marked as trending
-                  </p>
-                </div>
-              </div>
-              
-              <div>
-                <h3 className="text-sm font-medium mb-2">Rating Threshold</h3>
-                <div className="space-y-2">
-                  <Slider
-                    value={ratingThreshold}
-                    min={0}
-                    max={10}
-                    step={0.1}
-                    onValueChange={setRatingThreshold}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-gray-400">
-                    Anime with rating above {ratingThreshold[0]} will be marked as popular
-                  </p>
-                </div>
-              </div>
-            </div>
-            
+          <div className="space-y-6">            
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <Input
@@ -250,8 +276,8 @@ const AdminDashboard = () => {
             <Film className="h-4 w-4 text-anime-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">128</div>
-            <p className="text-xs text-gray-400">+2 added today</p>
+            <div className="text-2xl font-bold">{stats?.totalAnime || 0}</div>
+            <p className="text-xs text-gray-400">From Supabase database</p>
           </CardContent>
         </Card>
         
@@ -261,8 +287,8 @@ const AdminDashboard = () => {
             <Tv className="h-4 w-4 text-anime-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">2,456</div>
-            <p className="text-xs text-gray-400">+18 added this week</p>
+            <div className="text-2xl font-bold">{stats?.totalEpisodes || 0}</div>
+            <p className="text-xs text-gray-400">From Supabase database</p>
           </CardContent>
         </Card>
         
@@ -272,8 +298,8 @@ const AdminDashboard = () => {
             <Eye className="h-4 w-4 text-anime-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">1.2M</div>
-            <p className="text-xs text-gray-400">+23% from last month</p>
+            <div className="text-2xl font-bold">-</div>
+            <p className="text-xs text-gray-400">Analytics integration pending</p>
           </CardContent>
         </Card>
         
@@ -283,8 +309,8 @@ const AdminDashboard = () => {
             <Users className="h-4 w-4 text-anime-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">12.8K</div>
-            <p className="text-xs text-gray-400">+42% from yesterday</p>
+            <div className="text-2xl font-bold">-</div>
+            <p className="text-xs text-gray-400">Analytics integration pending</p>
           </CardContent>
         </Card>
       </div>
@@ -299,15 +325,9 @@ const AdminDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <BarChart
-              data={barChartData}
-              categories={["views"]}
-              index="name"
-              colors={["#7661E4"]}
-              yAxisWidth={40}
-              showAnimation
-              className="aspect-[1.5/1]"
-            />
+            <div className="flex items-center justify-center h-64 text-gray-400">
+              Analytics integration pending
+            </div>
           </CardContent>
         </Card>
         
@@ -319,15 +339,9 @@ const AdminDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <AreaChart
-              data={areaChartData}
-              categories={["users", "viewers"]}
-              index="name"
-              colors={["#7661E4", "#FF5E4D"]}
-              yAxisWidth={40}
-              showAnimation
-              className="aspect-[1.5/1]"
-            />
+            <div className="flex items-center justify-center h-64 text-gray-400">
+              Analytics integration pending
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -337,20 +351,26 @@ const AdminDashboard = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-anime-primary" />
-              <span>Popular Genres</span>
+              <span>Genre Distribution</span>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="h-80">
-              <PieChart
-                data={pieChartData}
-                category="value"
-                index="name"
-                colors={["#7661E4", "#FF5E4D", "#4ECDC4", "#FF6B6B", "#C44D58"]}
-                showAnimation
-                className="h-full"
-              />
-            </div>
+            {genreChartData.length > 0 ? (
+              <div className="h-80">
+                <PieChart
+                  data={genreChartData}
+                  category="value"
+                  index="name"
+                  colors={["#7661E4", "#FF5E4D", "#4ECDC4", "#FF6B6B", "#C44D58"]}
+                  showAnimation
+                  className="h-full"
+                />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-80 text-gray-400">
+                No genre data available
+              </div>
+            )}
           </CardContent>
         </Card>
         
@@ -360,27 +380,34 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {[1, 2, 3, 4, 5].map((_, index) => (
-                <div key={index} className="flex items-start gap-4 border-b border-gray-800 pb-4 last:border-b-0 last:pb-0">
-                  <div className="w-12 h-12 bg-anime-dark rounded-md flex items-center justify-center text-anime-primary">
-                    {index % 2 === 0 ? <Film size={20} /> : <Tv size={20} />}
+              {stats?.recentlyAdded.length > 0 ? (
+                stats.recentlyAdded.map((anime, index) => (
+                  <div key={anime.id} className="flex items-start gap-4 border-b border-gray-800 pb-4 last:border-b-0 last:pb-0">
+                    <div className="w-12 h-12 bg-anime-dark rounded-md overflow-hidden">
+                      {anime.image_url ? (
+                        <img src={anime.image_url} alt={anime.title} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-anime-primary">
+                          <Film size={20} />
+                        </div>
+                      )}
+                    </div>
+                    <div>
+                      <h4 className="font-medium">{anime.title}</h4>
+                      <p className="text-sm text-gray-400 line-clamp-1">
+                        {anime.description || "No description available"}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {new Date(anime.created_at).toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h4 className="font-medium">
-                      {index % 2 === 0 ? "New anime added" : "Episode updated"}
-                    </h4>
-                    <p className="text-sm text-gray-400">
-                      {index % 2 === 0 
-                        ? `Added "Anime Title ${index + 1}" to the library` 
-                        : `Updated Episode ${index + 1} for "Anime Title"`
-                      }
-                    </p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {`${index + 1} hour${index !== 0 ? 's' : ''} ago`}
-                    </p>
-                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  No recent updates found
                 </div>
-              ))}
+              )}
             </div>
           </CardContent>
         </Card>
