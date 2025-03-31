@@ -134,7 +134,7 @@ const AdminDashboard = () => {
   };
   
   // Fetch dashboard stats from Supabase
-  const { data: stats, isLoading, error } = useQuery({
+  const { data: stats, isLoading, error, refetch } = useQuery({
     queryKey: ["dashboardStats"],
     queryFn: async (): Promise<DashboardStats> => {
       try {
@@ -240,7 +240,7 @@ const AdminDashboard = () => {
       const importCount = await bulkImportTrendingAnime();
       if (importCount > 0) {
         // Refetch data to update stats
-        await stats?.refetch?.();
+        await refetch();
       }
     } catch (error) {
       console.error("Bulk import error:", error);
@@ -265,7 +265,7 @@ const AdminDashboard = () => {
       if (animeId) {
         customAnimeForm.reset();
         // Refetch data to update stats
-        await stats?.refetch?.();
+        await refetch();
       }
     } catch (error) {
       console.error("Custom anime creation error:", error);
@@ -279,7 +279,7 @@ const AdminDashboard = () => {
         data.animeId,
         {
           title: data.title,
-          number: parseInt(data.number),
+          number: parseInt(data.number.toString()),
           description: data.description,
           thumbnailUrl: data.thumbnailUrl,
           embedProvider: data.embedProvider,
@@ -290,7 +290,7 @@ const AdminDashboard = () => {
       if (episodeId) {
         episodeForm.reset();
         // Refetch data to update stats
-        await stats?.refetch?.();
+        await refetch();
       }
     } catch (error) {
       console.error("Episode creation error:", error);
