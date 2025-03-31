@@ -1,10 +1,9 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { BarChart, AreaChart, PieChart } from "@/components/ui/charts";
-import { Film, Users, Tv, Calendar, TrendingUp, Eye, Search, Download } from "lucide-react";
+import { Film, Users, Tv, Calendar, Search, Download } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +14,7 @@ import {
 } from "@/services/tmdbService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { PieChart } from "@/components/ui/charts";
 
 // Define stats interface
 interface DashboardStats {
@@ -105,6 +105,7 @@ const AdminDashboard = () => {
       setSearchResults(results);
     } catch (error) {
       console.error("Search error:", error);
+      toast.error("Failed to search for anime");
     } finally {
       setIsSearching(false);
     }
@@ -121,6 +122,7 @@ const AdminDashboard = () => {
       }
     } catch (error) {
       console.error("Import error:", error);
+      toast.error("Failed to import anime");
     } finally {
       setIsImporting(false);
     }
@@ -131,25 +133,6 @@ const AdminDashboard = () => {
     name,
     value
   }));
-  
-  // Monthly views data could come from a real analytics source in the future
-  const viewsData = [
-    { name: "Jan", views: 0 },
-    { name: "Feb", views: 0 },
-    { name: "Mar", views: 0 },
-    { name: "Apr", views: 0 },
-    { name: "May", views: 0 },
-    { name: "Jun", views: 0 },
-    { name: "Jul", views: 0 },
-  ];
-  
-  // User activity data could come from real user analytics in the future
-  const userActivityData = [
-    { name: "Week 1", users: 0, viewers: 0 },
-    { name: "Week 2", users: 0, viewers: 0 },
-    { name: "Week 3", users: 0, viewers: 0 },
-    { name: "Week 4", users: 0, viewers: 0 },
-  ];
   
   if (isLoading) {
     return (
@@ -294,58 +277,28 @@ const AdminDashboard = () => {
         
         <Card className="bg-anime-light border-gray-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Monthly Views</CardTitle>
-            <Eye className="h-4 w-4 text-anime-primary" />
+            <CardTitle className="text-sm font-medium">Admin Users</CardTitle>
+            <Users className="h-4 w-4 text-anime-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
-            <p className="text-xs text-gray-400">Analytics integration pending</p>
+            <div className="text-2xl font-bold">1</div>
+            <p className="text-xs text-gray-400">From Supabase database</p>
           </CardContent>
         </Card>
         
         <Card className="bg-anime-light border-gray-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Daily Users</CardTitle>
-            <Users className="h-4 w-4 text-anime-primary" />
+            <CardTitle className="text-sm font-medium">Genres</CardTitle>
+            <Calendar className="h-4 w-4 text-anime-primary" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">-</div>
-            <p className="text-xs text-gray-400">Analytics integration pending</p>
+            <div className="text-2xl font-bold">{Object.keys(stats?.genreCounts || {}).length}</div>
+            <p className="text-xs text-gray-400">From Supabase database</p>
           </CardContent>
         </Card>
       </div>
       
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card className="bg-anime-light border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-anime-primary" />
-              <span>Monthly Views</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-64 text-gray-400">
-              Analytics integration pending
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card className="bg-anime-light border-gray-800">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-anime-primary" />
-              <span>User Activity</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-center h-64 text-gray-400">
-              Analytics integration pending
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-      
+      {/* Charts and Recent Updates */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-anime-light border-gray-800">
           <CardHeader>

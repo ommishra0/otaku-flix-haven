@@ -1,8 +1,9 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // TMDB API configuration
-const TMDB_API_KEY = "fa97a6a1a98e78069cd497f4e9e887e5"; // Updated public API key for TMDB
+const TMDB_API_KEY = "d1aef4ce97f1eb865be6aabf156b6775"; // Updated API key for TMDB
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 const ANIME_GENRE_ID = 16; // Animation genre ID in TMDB
 
@@ -143,7 +144,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
       return false;
     }
     
-    // Insert anime into the database
+    // Insert anime into the database without using arbitrary thresholds
     const { data, error } = await supabase
       .from('anime')
       .insert({
@@ -153,8 +154,8 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
         banner_image_url: tmdbAnime.backdrop_path,
         rating: tmdbAnime.vote_average,
         release_year: tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null,
-        is_trending: tmdbAnime.popularity > 50,  // Simple threshold for trending
-        is_popular: tmdbAnime.vote_average > 7.5, // Simple threshold for popular
+        is_trending: false, // No arbitrary threshold
+        is_popular: false, // No arbitrary threshold
         type: "TV Series",
         status: "Completed"
       })
