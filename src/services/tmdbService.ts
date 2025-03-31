@@ -127,8 +127,8 @@ export const getAnimeDetails = async (tmdbId: number): Promise<TMDBAnime | null>
   }
 };
 
-// Function to import anime from TMDB to Supabase database - now without arbitrary thresholds
-export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boolean> => {
+// Function to import anime from TMDB to Supabase database
+export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: boolean = false): Promise<boolean> => {
   try {
     // Check if anime already exists in the database by title
     const { data: existingAnime, error: checkError } = await supabase
@@ -147,7 +147,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
       return false;
     }
     
-    // Insert anime into the database without using arbitrary thresholds
+    // Insert anime into the database
     const { data, error } = await supabase
       .from('anime')
       .insert({
@@ -157,9 +157,9 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
         banner_image_url: tmdbAnime.backdrop_path,
         rating: tmdbAnime.vote_average,
         release_year: tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null,
-        // No arbitrary thresholds for trending or popular flags
-        is_trending: false,
-        is_popular: false,
+        is_trending: isTrending,
+        is_popular: tmdbAnime.popularity > 50, // Set as popular if popularity is high
+        is_custom: false, // Not a custom upload
         type: "TV Series",
         status: "Completed"
       })
@@ -178,5 +178,140 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime): Promise<boole
     console.error("Error importing anime to database:", error);
     toast.error("Could not import anime to database");
     return false;
+  }
+};
+
+// Function to bulk import trending anime from TMDB
+export const bulkImportTrendingAnime = async (): Promise<number> => {
+  try {
+    const trendingAnime = await getTrendingAnime();
+    
+    if (!trendingAnime.length) {
+      toast.error("No trending anime found to import");
+      return 0;
+    }
+    
+    let importCount = 0;
+    
+    for (const anime of trendingAnime) {
+      const success = await importAnimeToDatabase(anime, true);
+      if (success) importCount++;
+    }
+    
+    if (importCount > 0) {
+      toast.success(`Successfully imported ${importCount} trending anime!`);
+    } else {
+      toast.warning("No new trending anime were imported.");
+    }
+    
+    return importCount;
+  } catch (error) {
+    console.error("Error bulk importing trending anime:", error);
+    toast.error("Failed to bulk import trending anime");
+    return 0;
+  }
+};
+
+// Function to add custom anime to the database
+export const addCustomAnime = async (animeData: {
+  title: string;
+  description?: string;
+  imageUrl?: string;
+  bannerImageUrl?: string;
+  releaseYear?: number;
+  type?: string;
+  status?: string;
+}): Promise<string | null> => {
+  try {
+    // Check if anime already exists
+    const { data: existingAnime, error: checkError } = await supabase
+      .from('anime')
+      .select('id, title')
+      .eq('title', animeData.title)
+      .limit(1);
+    
+    if (checkError) {
+      console.error("Error checking existing anime:", checkError);
+      throw checkError;
+    }
+    
+    if (existingAnime && existingAnime.length > 0) {
+      toast.error(`"${animeData.title}" is already in the database.`);
+      return null;
+    }
+    
+    // Insert custom anime into the database
+    const { data, error } = await supabase
+      .from('anime')
+      .insert({
+        title: animeData.title,
+        description: animeData.description || "",
+        image_url: animeData.imageUrl || null,
+        banner_image_url: animeData.bannerImageUrl || null,
+        release_year: animeData.releaseYear || null,
+        is_trending: false,
+        is_popular: false,
+        is_custom: true, // Mark as custom upload
+        type: animeData.type || "TV Series",
+        status: animeData.status || "Ongoing"
+      })
+      .select('id, title')
+      .single();
+    
+    if (error) {
+      console.error("Error adding custom anime:", error);
+      throw error;
+    }
+    
+    toast.success(`Added custom anime "${animeData.title}" to the database.`);
+    
+    return data.id;
+  } catch (error) {
+    console.error("Error adding custom anime:", error);
+    toast.error("Could not add custom anime to database");
+    return null;
+  }
+};
+
+// Function to add an episode with embed code
+export const addEpisodeWithEmbed = async (
+  animeId: string,
+  episodeData: {
+    title: string;
+    number: number;
+    description?: string;
+    thumbnailUrl?: string;
+    embedProvider?: string; // e.g., 'filemoon', 'streamtab'
+    embedCode?: string; // The embed HTML or iframe code
+  }
+): Promise<string | null> => {
+  try {
+    // Insert episode with embed code
+    const { data, error } = await supabase
+      .from('episodes')
+      .insert({
+        anime_id: animeId,
+        title: episodeData.title,
+        number: episodeData.number,
+        description: episodeData.description || "",
+        thumbnail_url: episodeData.thumbnailUrl || null,
+        embed_provider: episodeData.embedProvider || null,
+        embed_code: episodeData.embedCode || null
+      })
+      .select('id, title')
+      .single();
+    
+    if (error) {
+      console.error("Error adding episode with embed:", error);
+      throw error;
+    }
+    
+    toast.success(`Added episode ${episodeData.number}: "${episodeData.title}"`);
+    
+    return data.id;
+  } catch (error) {
+    console.error("Error adding episode with embed:", error);
+    toast.error("Could not add episode to database");
+    return null;
   }
 };

@@ -3,18 +3,52 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Film, Users, Tv, Calendar, Search, Download } from "lucide-react";
+import { Film, Users, Tv, Calendar, Search, Download, Plus, Upload, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   searchAnime, 
-  importAnimeToDatabase, 
+  importAnimeToDatabase,
+  bulkImportTrendingAnime,
+  addCustomAnime,
+  addEpisodeWithEmbed,
   TMDBAnime 
 } from "@/services/tmdbService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
 import { PieChart } from "@/components/ui/charts";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Form, 
+  FormField, 
+  FormItem, 
+  FormLabel, 
+  FormControl, 
+  FormDescription, 
+  FormMessage 
+} from "@/components/ui/form";
+import * as z from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { 
+  Select, 
+  SelectContent, 
+  SelectItem, 
+  SelectTrigger, 
+  SelectValue 
+} from "@/components/ui/select";
+import { 
+  Drawer,
+  DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 
 // Define stats interface
 interface DashboardStats {
@@ -24,11 +58,80 @@ interface DashboardStats {
   genreCounts: Record<string, number>;
 }
 
+// Custom anime form schema
+const customAnimeSchema = z.object({
+  title: z.string().min(2, { message: "Title must be at least 2 characters" }),
+  description: z.string().optional(),
+  imageUrl: z.string().url({ message: "Please enter a valid image URL" }).optional().or(z.literal("")),
+  bannerImageUrl: z.string().url({ message: "Please enter a valid banner image URL" }).optional().or(z.literal("")),
+  releaseYear: z.string().transform(val => val ? parseInt(val) : undefined).optional(),
+  type: z.string().optional(),
+  status: z.string().optional(),
+});
+
+// Episode form schema
+const episodeSchema = z.object({
+  animeId: z.string().uuid({ message: "Please select an anime" }),
+  title: z.string().min(2, { message: "Title must be at least 2 characters" }),
+  number: z.string().transform(val => parseInt(val)),
+  description: z.string().optional(),
+  thumbnailUrl: z.string().url({ message: "Please enter a valid thumbnail URL" }).optional().or(z.literal("")),
+  embedProvider: z.string().optional(),
+  embedCode: z.string().optional(),
+});
+
 const AdminDashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<TMDBAnime[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isBulkImporting, setIsBulkImporting] = useState(false);
+  const [animeList, setAnimeList] = useState<any[]>([]);
+
+  // Custom anime form
+  const customAnimeForm = useForm<z.infer<typeof customAnimeSchema>>({
+    resolver: zodResolver(customAnimeSchema),
+    defaultValues: {
+      title: "",
+      description: "",
+      imageUrl: "",
+      bannerImageUrl: "",
+      releaseYear: "",
+      type: "TV Series",
+      status: "Ongoing",
+    },
+  });
+
+  // Episode form
+  const episodeForm = useForm<z.infer<typeof episodeSchema>>({
+    resolver: zodResolver(episodeSchema),
+    defaultValues: {
+      animeId: "",
+      title: "",
+      number: "1",
+      description: "",
+      thumbnailUrl: "",
+      embedProvider: "",
+      embedCode: "",
+    },
+  });
+  
+  // Fetch all anime for the episode form dropdown
+  const fetchAnimeList = async () => {
+    const { data, error } = await supabase
+      .from('anime')
+      .select('id, title')
+      .order('title', { ascending: true });
+    
+    if (error) {
+      console.error("Error fetching anime list:", error);
+      toast.error("Failed to load anime list");
+      return [];
+    }
+    
+    setAnimeList(data || []);
+    return data || [];
+  };
   
   // Fetch dashboard stats from Supabase
   const { data: stats, isLoading, error } = useQuery({
@@ -75,6 +178,9 @@ const AdminDashboard = () => {
         genres?.forEach(genre => {
           genreCounts[genre.name] = genre.anime_genres?.length || 0;
         });
+
+        // Fetch anime list for forms
+        await fetchAnimeList();
         
         return {
           totalAnime: animeCount || 0,
@@ -127,6 +233,70 @@ const AdminDashboard = () => {
       setIsImporting(false);
     }
   };
+
+  const handleBulkImport = async () => {
+    setIsBulkImporting(true);
+    try {
+      const importCount = await bulkImportTrendingAnime();
+      if (importCount > 0) {
+        // Refetch data to update stats
+        await stats?.refetch?.();
+      }
+    } catch (error) {
+      console.error("Bulk import error:", error);
+      toast.error("Failed to bulk import trending anime");
+    } finally {
+      setIsBulkImporting(false);
+    }
+  };
+
+  const handleCustomAnimeSubmit = async (data: z.infer<typeof customAnimeSchema>) => {
+    try {
+      const animeId = await addCustomAnime({
+        title: data.title,
+        description: data.description,
+        imageUrl: data.imageUrl,
+        bannerImageUrl: data.bannerImageUrl,
+        releaseYear: data.releaseYear ? parseInt(data.releaseYear) : undefined,
+        type: data.type,
+        status: data.status
+      });
+      
+      if (animeId) {
+        customAnimeForm.reset();
+        // Refetch data to update stats
+        await stats?.refetch?.();
+      }
+    } catch (error) {
+      console.error("Custom anime creation error:", error);
+      toast.error("Failed to create custom anime");
+    }
+  };
+
+  const handleEpisodeSubmit = async (data: z.infer<typeof episodeSchema>) => {
+    try {
+      const episodeId = await addEpisodeWithEmbed(
+        data.animeId,
+        {
+          title: data.title,
+          number: parseInt(data.number),
+          description: data.description,
+          thumbnailUrl: data.thumbnailUrl,
+          embedProvider: data.embedProvider,
+          embedCode: data.embedCode
+        }
+      );
+      
+      if (episodeId) {
+        episodeForm.reset();
+        // Refetch data to update stats
+        await stats?.refetch?.();
+      }
+    } catch (error) {
+      console.error("Episode creation error:", error);
+      toast.error("Failed to create episode");
+    }
+  };
   
   // Prepare data for charts based on actual Supabase data
   const genreChartData = Object.entries(stats?.genreCounts || {}).map(([name, value]) => ({
@@ -157,99 +327,465 @@ const AdminDashboard = () => {
   
   return (
     <AdminLayout title="Dashboard">
-      {/* TMDB Scraper Section */}
-      <Card className="bg-anime-light border-gray-800 mb-8">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Download className="h-5 w-5 text-anime-primary" />
-            <span>TMDB Anime Scraper</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <Input
-                  placeholder="Search for anime to import..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-anime-dark border-gray-700"
-                  onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                />
-              </div>
-              <Button 
-                onClick={handleSearch}
-                disabled={isSearching || !searchQuery.trim()}
-                className="bg-anime-primary hover:bg-anime-primary/90"
-              >
-                {isSearching ? (
-                  <>
-                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
-                    Searching...
-                  </>
-                ) : (
-                  <>
-                    <Search className="w-4 h-4 mr-2" />
-                    Search TMDB
-                  </>
+      <Tabs defaultValue="import" className="mb-8">
+        <TabsList className="grid grid-cols-4 mb-4">
+          <TabsTrigger value="import">TMDB Import</TabsTrigger>
+          <TabsTrigger value="bulk">Bulk Import</TabsTrigger>
+          <TabsTrigger value="custom">Custom Anime</TabsTrigger>
+          <TabsTrigger value="episode">Add Episode</TabsTrigger>
+        </TabsList>
+        
+        {/* TMDB Import Tab */}
+        <TabsContent value="import">
+          <Card className="bg-anime-light border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-anime-primary" />
+                <span>TMDB Anime Importer</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">            
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <Input
+                      placeholder="Search for anime to import..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="bg-anime-dark border-gray-700"
+                      onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                    />
+                  </div>
+                  <Button 
+                    onClick={handleSearch}
+                    disabled={isSearching || !searchQuery.trim()}
+                    className="bg-anime-primary hover:bg-anime-primary/90"
+                  >
+                    {isSearching ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                        Searching...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4 mr-2" />
+                        Search TMDB
+                      </>
+                    )}
+                  </Button>
+                </div>
+                
+                {searchResults.length > 0 && (
+                  <div className="mt-4 overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Poster</TableHead>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Rating</TableHead>
+                          <TableHead>Year</TableHead>
+                          <TableHead>Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {searchResults.map((anime) => (
+                          <TableRow key={anime.id}>
+                            <TableCell>
+                              {anime.poster_path ? (
+                                <img 
+                                  src={anime.poster_path} 
+                                  alt={anime.title} 
+                                  className="w-12 h-16 object-cover rounded-sm"
+                                />
+                              ) : (
+                                <div className="w-12 h-16 bg-anime-dark flex items-center justify-center rounded-sm">
+                                  <Film size={20} className="text-gray-500" />
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell className="font-medium">{anime.title}</TableCell>
+                            <TableCell>{anime.vote_average.toFixed(1)}</TableCell>
+                            <TableCell>
+                              {anime.release_date 
+                                ? new Date(anime.release_date).getFullYear() 
+                                : 'Unknown'}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                className="bg-anime-primary hover:bg-anime-primary/90"
+                                onClick={() => handleImport(anime)}
+                                disabled={isImporting}
+                              >
+                                {isImporting ? "Importing..." : "Import"}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
-              </Button>
-            </div>
-            
-            {searchResults.length > 0 && (
-              <div className="mt-4 overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Poster</TableHead>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Rating</TableHead>
-                      <TableHead>Year</TableHead>
-                      <TableHead>Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {searchResults.map((anime) => (
-                      <TableRow key={anime.id}>
-                        <TableCell>
-                          {anime.poster_path ? (
-                            <img 
-                              src={anime.poster_path} 
-                              alt={anime.title} 
-                              className="w-12 h-16 object-cover rounded-sm"
-                            />
-                          ) : (
-                            <div className="w-12 h-16 bg-anime-dark flex items-center justify-center rounded-sm">
-                              <Film size={20} className="text-gray-500" />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium">{anime.title}</TableCell>
-                        <TableCell>{anime.vote_average.toFixed(1)}</TableCell>
-                        <TableCell>
-                          {anime.release_date 
-                            ? new Date(anime.release_date).getFullYear() 
-                            : 'Unknown'}
-                        </TableCell>
-                        <TableCell>
-                          <Button
-                            size="sm"
-                            className="bg-anime-primary hover:bg-anime-primary/90"
-                            onClick={() => handleImport(anime)}
-                            disabled={isImporting}
-                          >
-                            {isImporting ? "Importing..." : "Import"}
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
               </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Bulk Import Tab */}
+        <TabsContent value="bulk">
+          <Card className="bg-anime-light border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Download className="h-5 w-5 text-anime-primary" />
+                <span>Bulk Import Trending Anime</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                <p className="text-gray-300">
+                  This will import the top trending anime from TMDB and mark them as trending in your database.
+                  Each anime will be checked to ensure it doesn't already exist in your database.
+                </p>
+                
+                <div className="flex justify-center mt-6">
+                  <Button
+                    size="lg"
+                    className="bg-anime-primary hover:bg-anime-primary/90"
+                    onClick={handleBulkImport}
+                    disabled={isBulkImporting}
+                  >
+                    {isBulkImporting ? (
+                      <>
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                        Importing Trending Anime...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-5 h-5 mr-2" />
+                        Import All Trending Anime
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Custom Anime Tab */}
+        <TabsContent value="custom">
+          <Card className="bg-anime-light border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5 text-anime-primary" />
+                <span>Add Custom Anime</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...customAnimeForm}>
+                <form onSubmit={customAnimeForm.handleSubmit(handleCustomAnimeSubmit)} className="space-y-6">
+                  <FormField
+                    control={customAnimeForm.control}
+                    name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="Anime title" {...field} className="bg-anime-dark border-gray-700" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={customAnimeForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Anime description" 
+                            {...field} 
+                            className="bg-anime-dark border-gray-700 min-h-[100px]" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={customAnimeForm.control}
+                      name="imageUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Poster Image URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://example.com/image.jpg" {...field} className="bg-anime-dark border-gray-700" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={customAnimeForm.control}
+                      name="bannerImageUrl"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Banner Image URL</FormLabel>
+                          <FormControl>
+                            <Input placeholder="https://example.com/banner.jpg" {...field} className="bg-anime-dark border-gray-700" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <FormField
+                      control={customAnimeForm.control}
+                      name="releaseYear"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Release Year</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="2023" 
+                              {...field} 
+                              className="bg-anime-dark border-gray-700" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={customAnimeForm.control}
+                      name="type"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Type</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-anime-dark border-gray-700">
+                                <SelectValue placeholder="Select type" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="TV Series">TV Series</SelectItem>
+                              <SelectItem value="Movie">Movie</SelectItem>
+                              <SelectItem value="OVA">OVA</SelectItem>
+                              <SelectItem value="Special">Special</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={customAnimeForm.control}
+                      name="status"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Status</FormLabel>
+                          <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormControl>
+                              <SelectTrigger className="bg-anime-dark border-gray-700">
+                                <SelectValue placeholder="Select status" />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              <SelectItem value="Ongoing">Ongoing</SelectItem>
+                              <SelectItem value="Completed">Completed</SelectItem>
+                              <SelectItem value="Upcoming">Upcoming</SelectItem>
+                              <SelectItem value="Hiatus">Hiatus</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <Button type="submit" className="bg-anime-primary hover:bg-anime-primary/90">
+                    Add Custom Anime
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        {/* Add Episode Tab */}
+        <TabsContent value="episode">
+          <Card className="bg-anime-light border-gray-800">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Tv className="h-5 w-5 text-anime-primary" />
+                <span>Add Episode with Embed</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Form {...episodeForm}>
+                <form onSubmit={episodeForm.handleSubmit(handleEpisodeSubmit)} className="space-y-6">
+                  <FormField
+                    control={episodeForm.control}
+                    name="animeId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Select Anime</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="bg-anime-dark border-gray-700">
+                              <SelectValue placeholder="Select anime" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {animeList.map(anime => (
+                              <SelectItem key={anime.id} value={anime.id}>
+                                {anime.title}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <FormField
+                      control={episodeForm.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Episode Title</FormLabel>
+                          <FormControl>
+                            <Input placeholder="Episode title" {...field} className="bg-anime-dark border-gray-700" />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    <FormField
+                      control={episodeForm.control}
+                      name="number"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Episode Number</FormLabel>
+                          <FormControl>
+                            <Input 
+                              type="number" 
+                              placeholder="1" 
+                              {...field} 
+                              className="bg-anime-dark border-gray-700" 
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  
+                  <FormField
+                    control={episodeForm.control}
+                    name="description"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Description</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="Episode description" 
+                            {...field} 
+                            className="bg-anime-dark border-gray-700" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={episodeForm.control}
+                    name="thumbnailUrl"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Thumbnail URL</FormLabel>
+                        <FormControl>
+                          <Input 
+                            placeholder="https://example.com/thumbnail.jpg" 
+                            {...field} 
+                            className="bg-anime-dark border-gray-700" 
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={episodeForm.control}
+                    name="embedProvider"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Embed Provider</FormLabel>
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger className="bg-anime-dark border-gray-700">
+                              <SelectValue placeholder="Select provider" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="filemoon">Filemoon</SelectItem>
+                            <SelectItem value="streamtab">Streamtab</SelectItem>
+                            <SelectItem value="youtube">YouTube</SelectItem>
+                            <SelectItem value="other">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <FormField
+                    control={episodeForm.control}
+                    name="embedCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Embed Code (iframe or script)</FormLabel>
+                        <FormControl>
+                          <Textarea 
+                            placeholder="<iframe src='...'></iframe>" 
+                            {...field} 
+                            className="bg-anime-dark border-gray-700 min-h-[100px] font-mono text-sm" 
+                          />
+                        </FormControl>
+                        <FormDescription>
+                          Paste the embed code provided by the video host
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <Button type="submit" className="bg-anime-primary hover:bg-anime-primary/90">
+                    Add Episode
+                  </Button>
+                </form>
+              </Form>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

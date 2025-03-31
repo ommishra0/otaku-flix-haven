@@ -245,19 +245,30 @@ const WatchEpisode = () => {
       
       {/* Video Player */}
       <div className="relative bg-black aspect-video mb-6 rounded-lg overflow-hidden">
-        <div className="absolute inset-0 flex items-center justify-center">
-          <p className="text-white">Video player would appear here</p>
-          <Play size={48} className="text-white/50" />
-        </div>
-        <video 
-          ref={videoRef}
-          className="w-full h-full hidden"
-          controls
-          poster={episode.thumbnail_url}
-        >
-          <source src={episode.video_url} type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
+        {episode.embed_code ? (
+          // Render embedded player (Filemoon, StreamTab, etc.)
+          <div 
+            className="w-full h-full"
+            dangerouslySetInnerHTML={{ __html: episode.embed_code }} 
+          />
+        ) : episode.video_url ? (
+          // Render native video player if direct video URL exists
+          <video 
+            ref={videoRef}
+            className="w-full h-full"
+            controls
+            poster={episode.thumbnail_url}
+          >
+            <source src={episode.video_url} type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          // Placeholder if no video source is available
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="text-white">Video not available</p>
+            <Play size={48} className="text-white/50" />
+          </div>
+        )}
       </div>
       
       <AdBanner position="top" className="h-20 -mx-4 mb-6" />
@@ -407,7 +418,7 @@ const WatchEpisode = () => {
         <div className="lg:col-span-1">
           <h3 className="text-lg font-semibold mb-4">More Episodes</h3>
           <div className="space-y-3">
-            {anime.episodes.map((ep: any) => (
+            {anime.episodes?.map((ep: any) => (
               <Link 
                 key={ep.id}
                 to={`/watch/${animeId}/${ep.id}`}
