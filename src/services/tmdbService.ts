@@ -147,6 +147,10 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
       return false;
     }
     
+    // Ensure rating is within a valid range for the anime table (adjust based on your schema)
+    // Assuming the anime table's rating field accepts values between 0 and 10
+    let normalizedRating = Math.min(Math.max(0, tmdbAnime.vote_average), 10);
+    
     // Insert anime into the database
     const { data, error } = await supabase
       .from('anime')
@@ -155,7 +159,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
         description: tmdbAnime.overview,
         image_url: tmdbAnime.poster_path,
         banner_image_url: tmdbAnime.backdrop_path,
-        rating: tmdbAnime.vote_average,
+        rating: normalizedRating, // Using the normalized rating value
         release_year: tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null,
         is_trending: isTrending,
         is_popular: tmdbAnime.popularity > 50, // Set as popular if popularity is high

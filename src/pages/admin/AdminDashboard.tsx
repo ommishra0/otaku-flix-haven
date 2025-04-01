@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -92,7 +91,7 @@ const AdminDashboard = () => {
       description: "",
       imageUrl: "",
       bannerImageUrl: "",
-      releaseYear: "",
+      releaseYear: undefined, // Changed from string to undefined to match the number type
       type: "TV Series",
       status: "Ongoing",
     },
