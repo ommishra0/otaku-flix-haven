@@ -15,6 +15,10 @@ import AnimeList from "./pages/AnimeList";
 import AdminLogin from "./pages/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import Auth from "./pages/Auth";
+import CategoryPage from "./pages/CategoryPage";
+import ForumPage from "./pages/ForumPage";
+import ForumTopicPage from "./pages/ForumTopicPage";
+import NewForumTopicPage from "./pages/NewForumTopicPage";
 
 const queryClient = new QueryClient();
 
@@ -38,6 +42,15 @@ const App = () => (
               <Route path="/a-z" element={<AnimeList />} />
               <Route path="/search" element={<AnimeList />} />
               <Route path="/auth" element={<Auth />} />
+              
+              {/* Category Routes */}
+              <Route path="/categories" element={<CategoryPage />} />
+              <Route path="/categories/:id" element={<CategoryPage />} />
+              
+              {/* Forum Routes */}
+              <Route path="/forum" element={<ForumPage />} />
+              <Route path="/forum/topic/:id" element={<ForumTopicPage />} />
+              <Route path="/forum/new" element={<NewForumTopicPage />} />
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />

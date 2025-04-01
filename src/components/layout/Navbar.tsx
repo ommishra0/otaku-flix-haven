@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Search, Film, User, LogIn, LogOut } from "lucide-react";
+import { Menu, X, Search, Film, User, LogIn, LogOut, MessageSquare, Grid } from "lucide-react";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -63,6 +63,12 @@ const Navbar = () => {
                 Browse
               </Link>
               <Link
+                to="/categories"
+                className="text-gray-300 hover:text-anime-primary transition-colors"
+              >
+                Categories
+              </Link>
+              <Link
                 to="/genres"
                 className="text-gray-300 hover:text-anime-primary transition-colors"
               >
@@ -73,6 +79,12 @@ const Navbar = () => {
                 className="text-gray-300 hover:text-anime-primary transition-colors"
               >
                 Trending
+              </Link>
+              <Link
+                to="/forum"
+                className="text-gray-300 hover:text-anime-primary transition-colors"
+              >
+                Forum
               </Link>
             </div>
           )}
@@ -158,6 +170,12 @@ const Navbar = () => {
               Browse
             </Link>
             <Link
+              to="/categories"
+              className="block px-4 py-2 text-gray-300 hover:bg-anime-dark hover:text-anime-primary"
+            >
+              Categories
+            </Link>
+            <Link
               to="/genres"
               className="block px-4 py-2 text-gray-300 hover:bg-anime-dark hover:text-anime-primary"
             >
@@ -168,6 +186,12 @@ const Navbar = () => {
               className="block px-4 py-2 text-gray-300 hover:bg-anime-dark hover:text-anime-primary"
             >
               Trending
+            </Link>
+            <Link
+              to="/forum"
+              className="block px-4 py-2 text-gray-300 hover:bg-anime-dark hover:text-anime-primary"
+            >
+              Forum
             </Link>
           </div>
         )}

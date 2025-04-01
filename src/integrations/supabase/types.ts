@@ -87,6 +87,36 @@ export type Database = {
         }
         Relationships: []
       }
+      anime_categories: {
+        Row: {
+          anime_id: string
+          category_id: string
+        }
+        Insert: {
+          anime_id: string
+          category_id: string
+        }
+        Update: {
+          anime_id?: string
+          category_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anime_categories_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "anime_categories_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anime_genres: {
         Row: {
           anime_id: string
@@ -116,6 +146,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      categories: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       comments: {
         Row: {
@@ -223,6 +280,89 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      forum_replies: {
+        Row: {
+          content: string
+          created_at: string | null
+          downvotes: number | null
+          id: string
+          is_best_answer: boolean | null
+          topic_id: string | null
+          updated_at: string | null
+          upvotes: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          downvotes?: number | null
+          id?: string
+          is_best_answer?: boolean | null
+          topic_id?: string | null
+          updated_at?: string | null
+          upvotes?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          downvotes?: number | null
+          id?: string
+          is_best_answer?: boolean | null
+          topic_id?: string | null
+          updated_at?: string | null
+          upvotes?: number | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "forum_replies_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "forum_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      forum_topics: {
+        Row: {
+          content: string
+          created_at: string | null
+          downvotes: number | null
+          id: string
+          is_locked: boolean | null
+          is_pinned: boolean | null
+          title: string
+          updated_at: string | null
+          upvotes: number | null
+          user_id: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          downvotes?: number | null
+          id?: string
+          is_locked?: boolean | null
+          is_pinned?: boolean | null
+          title: string
+          updated_at?: string | null
+          upvotes?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          downvotes?: number | null
+          id?: string
+          is_locked?: boolean | null
+          is_pinned?: boolean | null
+          title?: string
+          updated_at?: string | null
+          upvotes?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       genres: {
         Row: {
