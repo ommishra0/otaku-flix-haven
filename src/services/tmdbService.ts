@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -150,7 +149,6 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
     }
     
     // Ensure rating is within a valid range for the anime table
-    // The constraint is now (rating IS NULL OR (rating >= 0 AND rating <= 10))
     let normalizedRating = tmdbAnime.vote_average;
     if (normalizedRating < 0) normalizedRating = 0;
     if (normalizedRating > 10) normalizedRating = 10;
@@ -159,6 +157,9 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
     
     // Prepare release year from date string
     const releaseYear = tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null;
+    
+    // Determine the type based on TMDB data
+    const animeType = tmdbAnime.type === 'Movie' ? 'Movie' : 'TV Series';
     
     // Insert anime into the database
     const { data, error } = await supabase
@@ -171,9 +172,9 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
         rating: normalizedRating,
         release_year: releaseYear,
         is_trending: isTrending,
-        is_popular: tmdbAnime.popularity > 50, // Set as popular if popularity is high
-        is_custom: false, // Not a custom upload
-        type: "TV Series",
+        is_popular: tmdbAnime.popularity > 50,
+        is_custom: false,
+        type: animeType,
         status: "Completed"
       })
       .select('id, title')
@@ -275,7 +276,7 @@ export const addCustomAnime = async (animeData: {
         release_year: animeData.releaseYear || null,
         is_trending: false,
         is_popular: false,
-        is_custom: true, // Mark as custom upload
+        is_custom: true,
         type: animeData.type || "TV Series",
         status: animeData.status || "Ongoing"
       })
