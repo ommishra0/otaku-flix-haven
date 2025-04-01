@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -61,7 +62,7 @@ const customAnimeSchema = z.object({
   description: z.string().optional(),
   imageUrl: z.string().url({ message: "Please enter a valid image URL" }).optional().or(z.literal("")),
   bannerImageUrl: z.string().url({ message: "Please enter a valid banner image URL" }).optional().or(z.literal("")),
-  releaseYear: z.string().transform(val => val ? parseInt(val) : undefined).optional(),
+  releaseYear: z.coerce.number().optional(), // Using coerce.number() to convert string input to number
   type: z.string().optional(),
   status: z.string().optional(),
 });
@@ -69,7 +70,7 @@ const customAnimeSchema = z.object({
 const episodeSchema = z.object({
   animeId: z.string().uuid({ message: "Please select an anime" }),
   title: z.string().min(2, { message: "Title must be at least 2 characters" }),
-  number: z.coerce.number(),
+  number: z.coerce.number(), // Using coerce.number() to convert string input to number
   description: z.string().optional(),
   thumbnailUrl: z.string().url({ message: "Please enter a valid thumbnail URL" }).optional().or(z.literal("")),
   embedProvider: z.string().optional(),
