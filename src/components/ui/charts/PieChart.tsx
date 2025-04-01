@@ -3,7 +3,7 @@ import React from "react";
 import { Pie, PieChart as RechartsPieChart, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 
-interface PieChartProps {
+export interface PieChartProps {
   data: any[];
   category: string;
   index: string;

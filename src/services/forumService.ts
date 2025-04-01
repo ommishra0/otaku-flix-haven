@@ -39,11 +39,11 @@ export const fetchAllTopics = async (): Promise<ForumTopic[]> => {
         profiles:user_id (username)
       `)
       .order('is_pinned', { ascending: false })
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false }) as any;
     
     if (error) throw error;
     
-    return data.map(topic => ({
+    return data.map((topic: any) => ({
       ...topic,
       username: topic.profiles?.username || 'Anonymous'
     })) || [];
@@ -65,7 +65,7 @@ export const fetchTopicWithReplies = async (topicId: string): Promise<{topic: Fo
         profiles:user_id (username)
       `)
       .eq('id', topicId)
-      .single();
+      .single() as any;
     
     if (topicError) throw topicError;
     
@@ -83,11 +83,11 @@ export const fetchTopicWithReplies = async (topicId: string): Promise<{topic: Fo
       `)
       .eq('topic_id', topicId)
       .order('is_best_answer', { ascending: false })
-      .order('created_at', { ascending: true });
+      .order('created_at', { ascending: true }) as any;
     
     if (repliesError) throw repliesError;
     
-    const replies = repliesData.map(reply => ({
+    const replies = repliesData.map((reply: any) => ({
       ...reply,
       username: reply.profiles?.username || 'Anonymous'
     })) || [];
@@ -115,12 +115,12 @@ export const createTopic = async (
         user_id: userId
       })
       .select('id')
-      .single();
+      .single() as any;
     
     if (error) throw error;
     
     toast.success("Topic created successfully");
-    return data.id;
+    return data?.id;
   } catch (error) {
     console.error('Error creating topic:', error);
     toast.error("Failed to create topic");
@@ -143,12 +143,12 @@ export const createReply = async (
         user_id: userId
       })
       .select('id')
-      .single();
+      .single() as any;
     
     if (error) throw error;
     
     toast.success("Reply posted successfully");
-    return data.id;
+    return data?.id;
   } catch (error) {
     console.error('Error creating reply:', error);
     toast.error("Failed to post reply");
@@ -167,7 +167,7 @@ export const voteOnTopic = async (
       .from('forum_topics')
       .select('upvotes, downvotes')
       .eq('id', topicId)
-      .single();
+      .single() as any;
     
     if (fetchError) throw fetchError;
     
@@ -179,7 +179,7 @@ export const voteOnTopic = async (
     const { error: updateError } = await supabase
       .from('forum_topics')
       .update(updates)
-      .eq('id', topicId);
+      .eq('id', topicId) as any;
     
     if (updateError) throw updateError;
     
@@ -202,7 +202,7 @@ export const voteOnReply = async (
       .from('forum_replies')
       .select('upvotes, downvotes')
       .eq('id', replyId)
-      .single();
+      .single() as any;
     
     if (fetchError) throw fetchError;
     
@@ -214,7 +214,7 @@ export const voteOnReply = async (
     const { error: updateError } = await supabase
       .from('forum_replies')
       .update(updates)
-      .eq('id', replyId);
+      .eq('id', replyId) as any;
     
     if (updateError) throw updateError;
     
@@ -237,7 +237,7 @@ export const markAsBestAnswer = async (
       .from('forum_replies')
       .update({ is_best_answer: false })
       .eq('topic_id', topicId)
-      .eq('is_best_answer', true);
+      .eq('is_best_answer', true) as any;
     
     if (resetError) throw resetError;
     
@@ -245,7 +245,7 @@ export const markAsBestAnswer = async (
     const { error: markError } = await supabase
       .from('forum_replies')
       .update({ is_best_answer: true })
-      .eq('id', replyId);
+      .eq('id', replyId) as any;
     
     if (markError) throw markError;
     
@@ -267,7 +267,7 @@ export const togglePinTopic = async (
     const { error } = await supabase
       .from('forum_topics')
       .update({ is_pinned: shouldPin })
-      .eq('id', topicId);
+      .eq('id', topicId) as any;
     
     if (error) throw error;
     
@@ -289,7 +289,7 @@ export const toggleLockTopic = async (
     const { error } = await supabase
       .from('forum_topics')
       .update({ is_locked: shouldLock })
-      .eq('id', topicId);
+      .eq('id', topicId) as any;
     
     if (error) throw error;
     

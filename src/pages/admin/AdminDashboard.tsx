@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -132,6 +133,8 @@ const AdminDashboard = () => {
                       { name: 'My Hero Academia', value: 13 }
                     ]}
                     colors={['#FF6B6B', '#4ECDC4', '#FFD166', '#06D6A0', '#118AB2']}
+                    category="value"
+                    index="name"
                   />
                 </div>
               </CardContent>
