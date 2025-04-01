@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -16,6 +17,7 @@ export interface TMDBAnime {
   release_date: string;
   vote_average: number;
   popularity: number;
+  type?: string; // Added type property as optional
 }
 
 // Function to get trending anime from TMDB
@@ -42,7 +44,9 @@ export const getTrendingAnime = async (): Promise<TMDBAnime[]> => {
       overview: item.overview,
       release_date: item.first_air_date,
       vote_average: item.vote_average,
-      popularity: item.popularity
+      popularity: item.popularity,
+      // Determine if it's a movie or TV series based on the TMDB data
+      type: item.media_type === 'movie' ? 'Movie' : 'TV Series'
     }));
   } catch (error) {
     console.error("Error fetching trending anime:", error);
@@ -84,7 +88,9 @@ export const searchAnime = async (query: string): Promise<TMDBAnime[]> => {
         overview: item.overview,
         release_date: item.first_air_date,
         vote_average: item.vote_average,
-        popularity: item.popularity
+        popularity: item.popularity,
+        // Set type based on what we know
+        type: 'TV Series' // Default to TV Series for search results
       }));
   } catch (error) {
     console.error("Error searching anime:", error);
@@ -117,7 +123,8 @@ export const getAnimeDetails = async (tmdbId: number): Promise<TMDBAnime | null>
       overview: item.overview,
       release_date: item.first_air_date,
       vote_average: item.vote_average,
-      popularity: item.popularity
+      popularity: item.popularity,
+      type: 'TV Series' // Default to TV Series for TV details
     };
   } catch (error) {
     console.error("Error fetching anime details:", error);
@@ -159,7 +166,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
     const releaseYear = tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null;
     
     // Determine the type based on TMDB data
-    const animeType = tmdbAnime.type === 'Movie' ? 'Movie' : 'TV Series';
+    const animeType = tmdbAnime.type || 'TV Series'; // Default to TV Series if type not specified
     
     // Insert anime into the database
     const { data, error } = await supabase
