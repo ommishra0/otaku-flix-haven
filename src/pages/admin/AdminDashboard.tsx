@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import AdminLayout from "@/components/admin/AdminLayout";
@@ -50,7 +49,6 @@ import {
   DrawerTrigger,
 } from "@/components/ui/drawer";
 
-// Define stats interface
 interface DashboardStats {
   totalAnime: number;
   totalEpisodes: number;
@@ -58,7 +56,6 @@ interface DashboardStats {
   genreCounts: Record<string, number>;
 }
 
-// Custom anime form schema
 const customAnimeSchema = z.object({
   title: z.string().min(2, { message: "Title must be at least 2 characters" }),
   description: z.string().optional(),
@@ -69,11 +66,10 @@ const customAnimeSchema = z.object({
   status: z.string().optional(),
 });
 
-// Episode form schema
 const episodeSchema = z.object({
   animeId: z.string().uuid({ message: "Please select an anime" }),
   title: z.string().min(2, { message: "Title must be at least 2 characters" }),
-  number: z.coerce.number(), // Fixed: Use coerce.number() instead of string transformation
+  number: z.coerce.number(),
   description: z.string().optional(),
   thumbnailUrl: z.string().url({ message: "Please enter a valid thumbnail URL" }).optional().or(z.literal("")),
   embedProvider: z.string().optional(),
@@ -88,7 +84,6 @@ const AdminDashboard = () => {
   const [isBulkImporting, setIsBulkImporting] = useState(false);
   const [animeList, setAnimeList] = useState<any[]>([]);
 
-  // Custom anime form
   const customAnimeForm = useForm<z.infer<typeof customAnimeSchema>>({
     resolver: zodResolver(customAnimeSchema),
     defaultValues: {
@@ -102,21 +97,19 @@ const AdminDashboard = () => {
     },
   });
 
-  // Episode form
   const episodeForm = useForm<z.infer<typeof episodeSchema>>({
     resolver: zodResolver(episodeSchema),
     defaultValues: {
       animeId: "",
       title: "",
-      number: "1",
+      number: 1,
       description: "",
       thumbnailUrl: "",
       embedProvider: "",
       embedCode: "",
     },
   });
-  
-  // Fetch all anime for the episode form dropdown
+
   const fetchAnimeList = async () => {
     const { data, error } = await supabase
       .from('anime')
@@ -132,27 +125,23 @@ const AdminDashboard = () => {
     setAnimeList(data || []);
     return data || [];
   };
-  
-  // Fetch dashboard stats from Supabase
+
   const { data: stats, isLoading, error, refetch } = useQuery({
     queryKey: ["dashboardStats"],
     queryFn: async (): Promise<DashboardStats> => {
       try {
-        // Get total anime count
         const { count: animeCount, error: animeError } = await supabase
           .from('anime')
           .select('*', { count: 'exact', head: true });
         
         if (animeError) throw animeError;
         
-        // Get total episodes count
         const { count: episodesCount, error: episodesError } = await supabase
           .from('episodes')
           .select('*', { count: 'exact', head: true });
         
         if (episodesError) throw episodesError;
         
-        // Get recently added anime
         const { data: recentAnime, error: recentError } = await supabase
           .from('anime')
           .select('*')
@@ -161,7 +150,6 @@ const AdminDashboard = () => {
         
         if (recentError) throw recentError;
         
-        // Get genre distribution
         const { data: genres, error: genreError } = await supabase
           .from('genres')
           .select(`
@@ -173,13 +161,11 @@ const AdminDashboard = () => {
         
         if (genreError) throw genreError;
         
-        // Count anime by genre
         const genreCounts: Record<string, number> = {};
         genres?.forEach(genre => {
           genreCounts[genre.name] = genre.anime_genres?.length || 0;
         });
 
-        // Fetch anime list for forms
         await fetchAnimeList();
         
         return {
@@ -199,7 +185,7 @@ const AdminDashboard = () => {
         };
       }
     },
-    refetchInterval: 30000, // Refresh data every 30 seconds
+    refetchInterval: 30000,
   });
 
   const handleSearch = async () => {
@@ -223,7 +209,6 @@ const AdminDashboard = () => {
       const success = await importAnimeToDatabase(anime);
       
       if (success) {
-        // Remove from search results if successfully imported
         setSearchResults(prev => prev.filter(item => item.id !== anime.id));
       }
     } catch (error) {
@@ -239,7 +224,6 @@ const AdminDashboard = () => {
     try {
       const importCount = await bulkImportTrendingAnime();
       if (importCount > 0) {
-        // Refetch data to update stats
         await refetch();
       }
     } catch (error) {
@@ -264,7 +248,6 @@ const AdminDashboard = () => {
       
       if (animeId) {
         customAnimeForm.reset();
-        // Refetch data to update stats
         await refetch();
       }
     } catch (error) {
@@ -279,7 +262,7 @@ const AdminDashboard = () => {
         data.animeId,
         {
           title: data.title,
-          number: data.number, // Fixed: Now number is already coerced to a number
+          number: data.number,
           description: data.description,
           thumbnailUrl: data.thumbnailUrl,
           embedProvider: data.embedProvider,
@@ -289,7 +272,6 @@ const AdminDashboard = () => {
       
       if (episodeId) {
         episodeForm.reset();
-        // Refetch data to update stats
         await refetch();
       }
     } catch (error) {
@@ -297,13 +279,12 @@ const AdminDashboard = () => {
       toast.error("Failed to create episode");
     }
   };
-  
-  // Prepare data for charts based on actual Supabase data
+
   const genreChartData = Object.entries(stats?.genreCounts || {}).map(([name, value]) => ({
     name,
     value
   }));
-  
+
   if (isLoading) {
     return (
       <AdminLayout title="Dashboard">
@@ -313,7 +294,7 @@ const AdminDashboard = () => {
       </AdminLayout>
     );
   }
-  
+
   if (error) {
     return (
       <AdminLayout title="Dashboard">
@@ -324,7 +305,7 @@ const AdminDashboard = () => {
       </AdminLayout>
     );
   }
-  
+
   return (
     <AdminLayout title="Dashboard">
       <Tabs defaultValue="import" className="mb-8">
@@ -335,7 +316,6 @@ const AdminDashboard = () => {
           <TabsTrigger value="episode">Add Episode</TabsTrigger>
         </TabsList>
         
-        {/* TMDB Import Tab */}
         <TabsContent value="import">
           <Card className="bg-anime-light border-gray-800">
             <CardHeader>
@@ -431,7 +411,6 @@ const AdminDashboard = () => {
           </Card>
         </TabsContent>
         
-        {/* Bulk Import Tab */}
         <TabsContent value="bulk">
           <Card className="bg-anime-light border-gray-800">
             <CardHeader>
@@ -472,7 +451,6 @@ const AdminDashboard = () => {
           </Card>
         </TabsContent>
         
-        {/* Custom Anime Tab */}
         <TabsContent value="custom">
           <Card className="bg-anime-light border-gray-800">
             <CardHeader>
@@ -624,7 +602,6 @@ const AdminDashboard = () => {
           </Card>
         </TabsContent>
         
-        {/* Add Episode Tab */}
         <TabsContent value="episode">
           <Card className="bg-anime-light border-gray-800">
             <CardHeader>
@@ -787,7 +764,6 @@ const AdminDashboard = () => {
         </TabsContent>
       </Tabs>
       
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card className="bg-anime-light border-gray-800">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -834,7 +810,6 @@ const AdminDashboard = () => {
         </Card>
       </div>
       
-      {/* Charts and Recent Updates */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="bg-anime-light border-gray-800">
           <CardHeader>
