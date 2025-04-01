@@ -130,6 +130,8 @@ export const getAnimeDetails = async (tmdbId: number): Promise<TMDBAnime | null>
 // Function to import anime from TMDB to Supabase database
 export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: boolean = false): Promise<boolean> => {
   try {
+    console.log("Importing anime:", tmdbAnime.title, "with rating:", tmdbAnime.vote_average);
+    
     // Check if anime already exists in the database by title
     const { data: existingAnime, error: checkError } = await supabase
       .from('anime')
@@ -147,9 +149,16 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
       return false;
     }
     
-    // Ensure rating is within a valid range for the anime table (adjust based on your schema)
-    // Assuming the anime table's rating field accepts values between 0 and 10
-    let normalizedRating = Math.min(Math.max(0, tmdbAnime.vote_average), 10);
+    // Ensure rating is within a valid range for the anime table
+    // The constraint is now (rating IS NULL OR (rating >= 0 AND rating <= 10))
+    let normalizedRating = tmdbAnime.vote_average;
+    if (normalizedRating < 0) normalizedRating = 0;
+    if (normalizedRating > 10) normalizedRating = 10;
+    
+    console.log("Normalized rating:", normalizedRating);
+    
+    // Prepare release year from date string
+    const releaseYear = tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null;
     
     // Insert anime into the database
     const { data, error } = await supabase
@@ -159,8 +168,8 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
         description: tmdbAnime.overview,
         image_url: tmdbAnime.poster_path,
         banner_image_url: tmdbAnime.backdrop_path,
-        rating: normalizedRating, // Using the normalized rating value
-        release_year: tmdbAnime.release_date ? new Date(tmdbAnime.release_date).getFullYear() : null,
+        rating: normalizedRating,
+        release_year: releaseYear,
         is_trending: isTrending,
         is_popular: tmdbAnime.popularity > 50, // Set as popular if popularity is high
         is_custom: false, // Not a custom upload
@@ -176,6 +185,7 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
     }
     
     toast.success(`Added "${tmdbAnime.title}" to the database.`);
+    console.log("Successfully imported anime:", tmdbAnime.title);
     
     return true;
   } catch (error) {
@@ -196,16 +206,26 @@ export const bulkImportTrendingAnime = async (): Promise<number> => {
     }
     
     let importCount = 0;
+    let failures = 0;
     
     for (const anime of trendingAnime) {
+      console.log(`Attempting to import: ${anime.title}`);
       const success = await importAnimeToDatabase(anime, true);
-      if (success) importCount++;
+      if (success) {
+        importCount++;
+      } else {
+        failures++;
+      }
     }
     
     if (importCount > 0) {
       toast.success(`Successfully imported ${importCount} trending anime!`);
     } else {
       toast.warning("No new trending anime were imported.");
+    }
+    
+    if (failures > 0) {
+      toast.warning(`${failures} anime could not be imported.`);
     }
     
     return importCount;
