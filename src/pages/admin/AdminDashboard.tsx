@@ -13,6 +13,8 @@ import {
 } from "@/components/ui/card";
 import { PieChart } from "@/components/ui/charts";
 import { Activity, BarChart3, Users, Film } from "lucide-react";
+import AnimeManagement from "@/components/admin/AnimeManagement";
+import EpisodeManagement from "@/components/admin/EpisodeManagement";
 
 // Mock dashboard data
 const mockStats = {
@@ -159,36 +161,12 @@ const AdminDashboard = () => {
         
         <TabsContent value="anime">
           {/* Anime Management Tab */}
-          <Card className="bg-anime-dark border-gray-800">
-            <CardHeader>
-              <CardTitle>Anime Library</CardTitle>
-              <CardDescription>
-                Manage your anime collection
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 text-gray-400">
-                Anime management interface would be here
-              </div>
-            </CardContent>
-          </Card>
+          <AnimeManagement />
         </TabsContent>
         
         <TabsContent value="episodes">
           {/* Episodes Management Tab */}
-          <Card className="bg-anime-dark border-gray-800">
-            <CardHeader>
-              <CardTitle>Episodes</CardTitle>
-              <CardDescription>
-                Manage episodes for all your anime series
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-center h-64 text-gray-400">
-                Episodes management interface would be here
-              </div>
-            </CardContent>
-          </Card>
+          <EpisodeManagement />
         </TabsContent>
         
         <TabsContent value="categories">
