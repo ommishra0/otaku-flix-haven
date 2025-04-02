@@ -15,19 +15,21 @@ import { PieChart } from "@/components/ui/charts";
 import { Activity, BarChart3, Users, Film } from "lucide-react";
 import AnimeManagement from "@/components/admin/AnimeManagement";
 import EpisodeManagement from "@/components/admin/EpisodeManagement";
-
-// Mock dashboard data
-const mockStats = {
-  totalAnime: 234,
-  totalEpisodes: 4589,
-  totalUsers: 1287,
-  totalViews: 382947
-};
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const AdminDashboard = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
+  const [dashboardStats, setDashboardStats] = useState({
+    totalAnime: 0,
+    totalEpisodes: 0,
+    totalUsers: 0,
+    totalViews: 0
+  });
+  const [popularAnimeData, setPopularAnimeData] = useState<{name: string, value: number}[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Set active tab based on current path
@@ -42,8 +44,85 @@ const AdminDashboard = () => {
       setActiveTab("settings");
     } else {
       setActiveTab("dashboard");
+      // Load dashboard data
+      fetchDashboardData();
     }
   }, [location.pathname]);
+
+  const fetchDashboardData = async () => {
+    setIsLoading(true);
+    try {
+      // Fetch total anime count
+      const { count: animeCount, error: animeError } = await supabase
+        .from('anime')
+        .select('*', { count: 'exact', head: true });
+      
+      if (animeError) throw animeError;
+      
+      // Fetch total episodes count
+      const { count: episodesCount, error: episodesError } = await supabase
+        .from('episodes')
+        .select('*', { count: 'exact', head: true });
+      
+      if (episodesError) throw episodesError;
+      
+      // Fetch total users count
+      const { count: usersCount, error: usersError } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
+      
+      if (usersError) throw usersError;
+      
+      // Fetch total watch history count as proxy for views
+      const { count: viewsCount, error: viewsError } = await supabase
+        .from('watch_history')
+        .select('*', { count: 'exact', head: true });
+      
+      if (viewsError) throw viewsError;
+      
+      // Fetch popular anime data
+      const { data: animeData, error: popularError } = await supabase
+        .from('episodes')
+        .select(`
+          anime:anime_id (
+            id,
+            title
+          ),
+          count:id
+        `)
+        .not('anime_id', 'is', null)
+        .order('count', { ascending: false })
+        .limit(5);
+      
+      if (popularError) throw popularError;
+      
+      // Format the data for the pie chart
+      const popularAnimeChart = animeData
+        .filter(item => item.anime && item.anime.title) // Filter out any null values
+        .map(item => ({
+          name: item.anime.title,
+          value: parseInt(item.count) || 1 // Ensure we have a number
+        }));
+      
+      // Update state with all fetched data
+      setDashboardStats({
+        totalAnime: animeCount || 0,
+        totalEpisodes: episodesCount || 0,
+        totalUsers: usersCount || 0,
+        totalViews: viewsCount || 0
+      });
+      
+      setPopularAnimeData(popularAnimeChart.length > 0 ? popularAnimeChart : [
+        { name: 'No Data', value: 1 } // Fallback if no data
+      ]);
+      
+    } catch (error) {
+      console.error("Error fetching dashboard data:", error);
+      toast.error("Failed to load dashboard data");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
@@ -71,7 +150,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-bold text-white">{mockStats.totalAnime}</span>
+                  <span className="text-3xl font-bold text-white">{dashboardStats.totalAnime}</span>
                   <Film className="h-8 w-8 text-anime-primary" />
                 </div>
               </CardContent>
@@ -84,7 +163,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-bold text-white">{mockStats.totalEpisodes}</span>
+                  <span className="text-3xl font-bold text-white">{dashboardStats.totalEpisodes}</span>
                   <BarChart3 className="h-8 w-8 text-green-500" />
                 </div>
               </CardContent>
@@ -97,7 +176,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-bold text-white">{mockStats.totalUsers}</span>
+                  <span className="text-3xl font-bold text-white">{dashboardStats.totalUsers}</span>
                   <Users className="h-8 w-8 text-blue-500" />
                 </div>
               </CardContent>
@@ -110,7 +189,7 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-bold text-white">{mockStats.totalViews}</span>
+                  <span className="text-3xl font-bold text-white">{dashboardStats.totalViews}</span>
                   <Activity className="h-8 w-8 text-purple-500" />
                 </div>
               </CardContent>
@@ -126,18 +205,18 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="h-80">
-                  <PieChart 
-                    data={[
-                      { name: 'Naruto', value: 32 },
-                      { name: 'One Piece', value: 28 },
-                      { name: 'Attack on Titan', value: 22 },
-                      { name: 'Demon Slayer', value: 15 },
-                      { name: 'My Hero Academia', value: 13 }
-                    ]}
-                    colors={['#FF6B6B', '#4ECDC4', '#FFD166', '#06D6A0', '#118AB2']}
-                    category="value"
-                    index="name"
-                  />
+                  {isLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-anime-primary"></div>
+                    </div>
+                  ) : (
+                    <PieChart 
+                      data={popularAnimeData}
+                      colors={['#FF6B6B', '#4ECDC4', '#FFD166', '#06D6A0', '#118AB2']}
+                      category="value"
+                      index="name"
+                    />
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -149,9 +228,9 @@ const AdminDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="h-80">
-                  {/* Mock chart - we would integrate a real chart here */}
+                  {/* This would be replaced with actual user growth data */}
                   <div className="flex items-center justify-center h-full text-gray-400">
-                    User growth chart would be displayed here
+                    User growth chart will be available soon
                   </div>
                 </div>
               </CardContent>
@@ -185,7 +264,7 @@ const AdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-center h-64 text-gray-400">
-                Settings interface would be here
+                Settings interface will be available soon
               </div>
             </CardContent>
           </Card>

@@ -10,7 +10,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Video, PlayCircle, UploadCloud } from "lucide-react";
-import { addEpisodeWithEmbed } from "@/services/tmdbService";
 
 const EpisodeManagement = () => {
   const [animeList, setAnimeList] = useState<any[]>([]);
@@ -164,32 +163,41 @@ const EpisodeManagement = () => {
     }
     
     try {
-      const episodeId = await addEpisodeWithEmbed(selectedAnimeId, {
-        title: addFormData.title,
-        number: addFormData.number,
-        description: addFormData.description,
-        thumbnailUrl: addFormData.thumbnailUrl,
-        embedProvider: addFormData.embedProvider,
-        embedCode: addFormData.embedCode,
+      // Direct insert into episodes table
+      const { data, error } = await supabase
+        .from('episodes')
+        .insert({
+          anime_id: selectedAnimeId,
+          title: addFormData.title,
+          number: addFormData.number,
+          description: addFormData.description,
+          thumbnail_url: addFormData.thumbnailUrl,
+          embed_provider: addFormData.embedProvider,
+          embed_code: addFormData.embedCode
+        })
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error adding episode:', error);
+        throw error;
+      }
+      
+      toast.success('Episode added successfully');
+      setShowAddDialog(false);
+      setAddFormData({
+        title: "",
+        number: addFormData.number + 1, // Increment for next episode
+        description: "",
+        thumbnailUrl: "",
+        embedProvider: "filemoon",
+        embedCode: "",
       });
       
-      if (episodeId) {
-        toast.success('Episode added successfully');
-        setShowAddDialog(false);
-        setAddFormData({
-          title: "",
-          number: addFormData.number + 1, // Increment for next episode
-          description: "",
-          thumbnailUrl: "",
-          embedProvider: "filemoon",
-          embedCode: "",
-        });
-        
-        fetchEpisodes(selectedAnimeId);
-      }
-    } catch (error) {
+      fetchEpisodes(selectedAnimeId);
+    } catch (error: any) {
       console.error('Error adding episode:', error);
-      toast.error('Failed to add episode');
+      toast.error(`Could not add episode to database: ${error.message}`);
     }
   };
 
