@@ -9,8 +9,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Plus, Edit, Trash2, Video, PlayCircle, UploadCloud, Subtitles, Film } from "lucide-react";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const EpisodeManagement = () => {
+  const { isAdminAuthenticated, adminUser } = useAdminAuth();
+  const isMobile = useIsMobile();
   const [animeList, setAnimeList] = useState<any[]>([]);
   const [episodeList, setEpisodeList] = useState<any[]>([]);
   const [selectedAnimeId, setSelectedAnimeId] = useState<string | null>(null);
@@ -101,6 +105,11 @@ const EpisodeManagement = () => {
   const handleAddEpisode = () => {
     if (!selectedAnimeId) {
       toast.error('Please select an anime first');
+      return;
+    }
+    
+    if (!isAdminAuthenticated || !adminUser) {
+      toast.error('You must be logged in as an administrator to add episodes');
       return;
     }
     
@@ -207,6 +216,11 @@ const EpisodeManagement = () => {
       return;
     }
     
+    if (!isAdminAuthenticated || !adminUser) {
+      toast.error('You must be logged in as an administrator to add episodes');
+      return;
+    }
+    
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData.session) {
@@ -302,8 +316,8 @@ const EpisodeManagement = () => {
       <CardContent>
         <div className="mb-6">
           <Label htmlFor="anime-select" className="mb-2 block">Select Anime</Label>
-          <div className="flex gap-2">
-            <Select onValueChange={(value) => setSelectedAnimeId(value)}>
+          <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2`}>
+            <Select onValueChange={(value) => setSelectedAnimeId(value)} className={isMobile ? 'w-full mb-2' : 'w-72'}>
               <SelectTrigger className="bg-anime-light border-gray-700">
                 <SelectValue placeholder="Select an anime" />
               </SelectTrigger>
@@ -319,7 +333,7 @@ const EpisodeManagement = () => {
             <Button 
               onClick={handleAddEpisode} 
               disabled={!selectedAnimeId}
-              className="flex items-center gap-2"
+              className={`flex items-center gap-2 ${isMobile ? 'w-full' : ''}`}
             >
               <Plus size={16} />
               <span>Add Episode</span>
@@ -338,10 +352,10 @@ const EpisodeManagement = () => {
               <div className="grid gap-4">
                 {episodeList.map(episode => (
                   <Card key={episode.id} className="bg-anime-light border-gray-700">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="flex-shrink-0 w-12 h-12 rounded-md bg-gray-800 flex items-center justify-center">
+                    <CardContent className={`p-4 ${isMobile ? '' : ''}`}>
+                      <div className={`${isMobile ? 'flex flex-col space-y-3' : 'flex items-center justify-between'}`}>
+                        <div className={`${isMobile ? '' : 'flex items-center gap-4'}`}>
+                          <div className={`${isMobile ? 'mb-2 flex items-center gap-3' : 'flex-shrink-0'} w-12 h-12 rounded-md bg-gray-800 flex items-center justify-center`}>
                             {episode.thumbnail_url ? (
                               <img 
                                 src={episode.thumbnail_url} 
@@ -351,18 +365,28 @@ const EpisodeManagement = () => {
                             ) : (
                               <PlayCircle size={24} className="text-gray-500" />
                             )}
-                          </div>
-                          <div>
-                            <h4 className="font-semibold">Episode {episode.number}: {episode.title}</h4>
-                            {episode.description && (
-                              <p className="text-sm text-gray-400 line-clamp-1">{episode.description}</p>
+                            {isMobile && (
+                              <div className="ml-3">
+                                <h4 className="font-semibold">Episode {episode.number}: {episode.title}</h4>
+                                {episode.description && (
+                                  <p className="text-sm text-gray-400 line-clamp-1">{episode.description}</p>
+                                )}
+                              </div>
                             )}
                           </div>
+                          {!isMobile && (
+                            <div>
+                              <h4 className="font-semibold">Episode {episode.number}: {episode.title}</h4>
+                              {episode.description && (
+                                <p className="text-sm text-gray-400 line-clamp-1">{episode.description}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
-                        <div className="flex gap-2">
+                        <div className={`flex ${isMobile ? 'justify-end' : ''} gap-2`}>
                           <Button 
                             variant="outline" 
-                            size="sm"
+                            size={isMobile ? "sm" : "sm"}
                             onClick={() => handleEditEpisode(episode)}
                             className="flex items-center gap-1"
                           >
@@ -371,7 +395,7 @@ const EpisodeManagement = () => {
                           </Button>
                           <Button 
                             variant="destructive" 
-                            size="sm"
+                            size={isMobile ? "sm" : "sm"}
                             onClick={() => handleDeleteEpisode(episode.id)}
                             className="flex items-center gap-1"
                           >

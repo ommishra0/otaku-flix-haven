@@ -17,8 +17,12 @@ import AnimeManagement from "@/components/admin/AnimeManagement";
 import EpisodeManagement from "@/components/admin/EpisodeManagement";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAdminAuth } from "@/contexts/AdminAuthContext";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 const AdminDashboard = () => {
+  const { isAdminAuthenticated } = useAdminAuth();
+  const isMobile = useIsMobile();
   const location = useLocation();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -48,6 +52,14 @@ const AdminDashboard = () => {
       fetchDashboardData();
     }
   }, [location.pathname]);
+
+  useEffect(() => {
+    // Check if admin is authenticated
+    if (!isAdminAuthenticated) {
+      toast.error("You must be logged in as an administrator");
+      navigate("/admin/login");
+    }
+  }, [isAdminAuthenticated, navigate]);
 
   const fetchDashboardData = async () => {
     setIsLoading(true);
@@ -132,12 +144,12 @@ const AdminDashboard = () => {
   return (
     <AdminLayout title={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="bg-anime-light">
-          <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-          <TabsTrigger value="anime">Anime</TabsTrigger>
-          <TabsTrigger value="episodes">Episodes</TabsTrigger>
-          <TabsTrigger value="categories">Categories</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
+        <TabsList className={`bg-anime-light ${isMobile ? 'w-full flex' : ''}`}>
+          <TabsTrigger value="dashboard" className={isMobile ? 'flex-1 text-xs' : ''}>Dashboard</TabsTrigger>
+          <TabsTrigger value="anime" className={isMobile ? 'flex-1 text-xs' : ''}>Anime</TabsTrigger>
+          <TabsTrigger value="episodes" className={isMobile ? 'flex-1 text-xs' : ''}>Episodes</TabsTrigger>
+          <TabsTrigger value="categories" className={isMobile ? 'flex-1 text-xs' : ''}>Categories</TabsTrigger>
+          <TabsTrigger value="settings" className={isMobile ? 'flex-1 text-xs' : ''}>Settings</TabsTrigger>
         </TabsList>
         
         <TabsContent value="dashboard" className="space-y-6">

@@ -1,7 +1,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface AdminSession {
   email: string;
@@ -21,7 +21,6 @@ const AdminAuthContext = createContext<AdminAuthContextType | undefined>(undefin
 export function AdminAuthProvider({ children }: { children: ReactNode }) {
   const [adminUser, setAdminUser] = useState<AdminSession | null>(null);
   const [isAdminAuthenticated, setIsAdminAuthenticated] = useState<boolean>(false);
-  const { toast } = useToast();
   const navigate = useNavigate();
 
   // Check for existing admin session on load
@@ -34,8 +33,10 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
           if (sessionData.authenticated && sessionData.role === "admin") {
             setAdminUser(sessionData);
             setIsAdminAuthenticated(true);
+            console.log("Admin session restored:", sessionData);
           }
         } catch (error) {
+          console.error("Error parsing admin session:", error);
           localStorage.removeItem("adminSession");
           setIsAdminAuthenticated(false);
           setAdminUser(null);
@@ -63,21 +64,14 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
         setAdminUser(adminSession);
         setIsAdminAuthenticated(true);
         
-        toast({
-          title: "Login successful",
-          description: "Welcome to the admin panel",
-        });
+        toast.success("Login successful. Welcome to the admin panel!");
         
         navigate("/admin/dashboard");
       } else {
         throw new Error("Invalid credentials");
       }
     } catch (error) {
-      toast({
-        title: "Login failed",
-        description: "Please enter valid credentials",
-        variant: "destructive",
-      });
+      toast.error("Login failed. Please enter valid credentials.");
       throw error;
     }
   };
@@ -88,10 +82,7 @@ export function AdminAuthProvider({ children }: { children: ReactNode }) {
     setIsAdminAuthenticated(false);
     setAdminUser(null);
     
-    toast({
-      title: "Logged out",
-      description: "You have been successfully logged out",
-    });
+    toast.success("You have been successfully logged out");
     
     navigate("/admin/login");
   };

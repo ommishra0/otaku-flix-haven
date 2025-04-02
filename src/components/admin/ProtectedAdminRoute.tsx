@@ -2,7 +2,7 @@
 import { ReactNode, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface ProtectedAdminRouteProps {
   children: ReactNode;
@@ -11,17 +11,12 @@ interface ProtectedAdminRouteProps {
 const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
   const { isAdminAuthenticated } = useAdminAuth();
   const location = useLocation();
-  const { toast } = useToast();
 
   useEffect(() => {
     if (!isAdminAuthenticated) {
-      toast({
-        title: "Access denied",
-        description: "You must be logged in as an administrator to view this page",
-        variant: "destructive",
-      });
+      toast.error("Access denied. You must be logged in as an administrator to view this page");
     }
-  }, [isAdminAuthenticated, toast]);
+  }, [isAdminAuthenticated]);
 
   if (!isAdminAuthenticated) {
     // Redirect to login page but save the location they were trying to access
