@@ -1,3 +1,4 @@
+
 import { Link } from 'react-router-dom';
 import { useInView } from '@/hooks/use-intersection-observer';
 import { Anime } from '@/services/animeService';

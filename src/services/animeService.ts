@@ -157,7 +157,12 @@ export const fetchEpisodes = async (animeId: string): Promise<Episode[]> => {
     return [];
   }
 
-  return data || [];
+  // Process the subtitles and quality_options to ensure they're in the right format
+  return (data || []).map(episode => ({
+    ...episode,
+    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles : [],
+    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options : []
+  }));
 };
 
 // Add function for paginated episodes
@@ -182,8 +187,15 @@ export const fetchAnimeEpisodes = async (animeId: string, page = 1, perPage = 10
   // Calculate total pages
   const totalPages = count ? Math.ceil(count / perPage) : 0;
   
+  // Process the subtitles and quality_options to ensure they're in the right format
+  const episodes = (data || []).map(episode => ({
+    ...episode,
+    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles : [],
+    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options : []
+  }));
+  
   return { 
-    episodes: data || [], 
+    episodes, 
     totalPages 
   };
 };
@@ -201,7 +213,16 @@ export const fetchEpisode = async (episodeId: string): Promise<Episode | null> =
     return null;
   }
 
-  return data;
+  // Process the subtitles and quality_options to ensure they're in the right format
+  if (data) {
+    return {
+      ...data,
+      subtitles: Array.isArray(data.subtitles) ? data.subtitles : [],
+      quality_options: Array.isArray(data.quality_options) ? data.quality_options : []
+    };
+  }
+
+  return null;
 };
 
 // Fetch complete anime details including related data
@@ -233,10 +254,11 @@ export const fetchAnimeFullDetails = async (id: string): Promise<Anime | null> =
     // Extract genre names and add to anime object
     const genres = genreData.map(g => g.genres.name);
     animeData.genres = genres;
+  } else {
+    animeData.genres = [];
   }
 
-  // Get alternative titles if you have them in your database
-  // This is a placeholder - adjust according to your database structure
+  // Initialize alternative titles if not present
   animeData.alternative_titles = animeData.alternative_titles || [];
 
   return animeData;
@@ -244,16 +266,17 @@ export const fetchAnimeFullDetails = async (id: string): Promise<Anime | null> =
 
 // Fetch cast for an anime
 export const fetchAnimeCast = async (animeId: string, searchQuery = ""): Promise<CastMember[]> => {
-  // Using fetch directly because of issues with the typed client
-  const url = `${supabase.supabaseUrl}/rest/v1/anime_cast?anime_id=eq.${animeId}&order=role.asc,name.asc`;
-  
-  const headers = {
-    'apikey': supabase.supabaseKey,
-    'Authorization': `Bearer ${supabase.supabaseKey}`,
-    'Content-Type': 'application/json'
-  };
-  
   try {
+    // Use the REST API URL from supabase
+    const url = `${process.env.SUPABASE_URL || 'https://pkkkzluhsoxvqbkzhfkz.supabase.co'}/rest/v1/anime_cast?anime_id=eq.${animeId}&order=role.asc,name.asc`;
+    
+    // Set up headers for authentication
+    const headers = {
+      'apikey': process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE',
+      'Authorization': `Bearer ${process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE'}`,
+      'Content-Type': 'application/json'
+    };
+    
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error('Failed to fetch cast');
     
@@ -276,16 +299,16 @@ export const fetchAnimeCast = async (animeId: string, searchQuery = ""): Promise
 
 // Fetch trailers for an anime
 export const fetchAnimeTrailers = async (animeId: string): Promise<Trailer[]> => {
-  // Using fetch directly because of issues with the typed client
-  const url = `${supabase.supabaseUrl}/rest/v1/anime_trailers?anime_id=eq.${animeId}`;
-  
-  const headers = {
-    'apikey': supabase.supabaseKey,
-    'Authorization': `Bearer ${supabase.supabaseKey}`,
-    'Content-Type': 'application/json'
-  };
-  
   try {
+    // Use the REST API URL from supabase
+    const url = `${process.env.SUPABASE_URL || 'https://pkkkzluhsoxvqbkzhfkz.supabase.co'}/rest/v1/anime_trailers?anime_id=eq.${animeId}`;
+    
+    const headers = {
+      'apikey': process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE',
+      'Authorization': `Bearer ${process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE'}`,
+      'Content-Type': 'application/json'
+    };
+    
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error('Failed to fetch trailers');
     
@@ -299,16 +322,16 @@ export const fetchAnimeTrailers = async (animeId: string): Promise<Trailer[]> =>
 
 // Fetch ratings for an anime
 export const fetchAnimeRatings = async (animeId: string): Promise<Rating[]> => {
-  // Using fetch directly because of issues with the typed client
-  const url = `${supabase.supabaseUrl}/rest/v1/anime_ratings?anime_id=eq.${animeId}`;
-  
-  const headers = {
-    'apikey': supabase.supabaseKey,
-    'Authorization': `Bearer ${supabase.supabaseKey}`,
-    'Content-Type': 'application/json'
-  };
-  
   try {
+    // Use the REST API URL from supabase
+    const url = `${process.env.SUPABASE_URL || 'https://pkkkzluhsoxvqbkzhfkz.supabase.co'}/rest/v1/anime_ratings?anime_id=eq.${animeId}`;
+    
+    const headers = {
+      'apikey': process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE',
+      'Authorization': `Bearer ${process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE'}`,
+      'Content-Type': 'application/json'
+    };
+    
     const response = await fetch(url, { headers });
     if (!response.ok) throw new Error('Failed to fetch ratings');
     
