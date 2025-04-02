@@ -81,6 +81,28 @@ export interface Rating {
   updated_at?: string;
 }
 
+// Helper function to safely parse JSON or return empty array
+const safeParseArray = <T>(jsonData: any, defaultValue: T[] = []): T[] => {
+  if (!jsonData) return defaultValue;
+  
+  try {
+    if (Array.isArray(jsonData)) return jsonData as T[];
+    return JSON.parse(jsonData) as T[];
+  } catch (e) {
+    console.error("Error parsing JSON data:", e);
+    return defaultValue;
+  }
+};
+
+// Helper function to process episode data from Supabase to match our interface
+const processEpisodeData = (episode: any): Episode => {
+  return {
+    ...episode,
+    subtitles: safeParseArray<Subtitle>(episode.subtitles, []),
+    quality_options: safeParseArray<QualityOption>(episode.quality_options, [])
+  };
+};
+
 // Fetch all anime
 export const fetchAllAnime = async (): Promise<Anime[]> => {
   const { data, error } = await supabase
@@ -93,7 +115,12 @@ export const fetchAllAnime = async (): Promise<Anime[]> => {
     return [];
   }
 
-  return data || [];
+  // Initialize empty arrays for the fields that don't exist in the database schema
+  return data.map(anime => ({
+    ...anime,
+    genres: [],
+    alternative_titles: []
+  }));
 };
 
 // Fetch trending anime
@@ -109,7 +136,11 @@ export const fetchTrendingAnime = async (limit = 10): Promise<Anime[]> => {
     return [];
   }
 
-  return data || [];
+  return data.map(anime => ({
+    ...anime,
+    genres: [],
+    alternative_titles: []
+  }));
 };
 
 // Fetch popular anime
@@ -125,7 +156,11 @@ export const fetchPopularAnime = async (limit = 10): Promise<Anime[]> => {
     return [];
   }
 
-  return data || [];
+  return data.map(anime => ({
+    ...anime,
+    genres: [],
+    alternative_titles: []
+  }));
 };
 
 // Fetch anime by ID
@@ -141,7 +176,15 @@ export const fetchAnimeById = async (id: string): Promise<Anime | null> => {
     return null;
   }
 
-  return data;
+  if (data) {
+    return {
+      ...data,
+      genres: [],
+      alternative_titles: []
+    };
+  }
+
+  return null;
 };
 
 // Fetch episodes for an anime
@@ -157,12 +200,8 @@ export const fetchEpisodes = async (animeId: string): Promise<Episode[]> => {
     return [];
   }
 
-  // Process the subtitles and quality_options to ensure they're in the right format
-  return (data || []).map(episode => ({
-    ...episode,
-    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles as Subtitle[] : [],
-    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options as QualityOption[] : []
-  }));
+  // Process each episode to ensure subtitles and quality_options are properly formatted
+  return (data || []).map(processEpisodeData);
 };
 
 // Add function for paginated episodes
@@ -187,12 +226,8 @@ export const fetchAnimeEpisodes = async (animeId: string, page = 1, perPage = 10
   // Calculate total pages
   const totalPages = count ? Math.ceil(count / perPage) : 0;
   
-  // Process the subtitles and quality_options to ensure they're in the right format
-  const episodes = (data || []).map(episode => ({
-    ...episode,
-    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles as Subtitle[] : [],
-    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options as QualityOption[] : []
-  }));
+  // Process each episode to ensure subtitles and quality_options are properly formatted
+  const episodes = (data || []).map(processEpisodeData);
   
   return { 
     episodes, 
@@ -213,13 +248,9 @@ export const fetchEpisode = async (episodeId: string): Promise<Episode | null> =
     return null;
   }
 
-  // Process the subtitles and quality_options to ensure they're in the right format
+  // Process the episode data if it exists
   if (data) {
-    return {
-      ...data,
-      subtitles: Array.isArray(data.subtitles) ? data.subtitles as Subtitle[] : [],
-      quality_options: Array.isArray(data.quality_options) ? data.quality_options as QualityOption[] : []
-    };
+    return processEpisodeData(data);
   }
 
   return null;
@@ -240,29 +271,34 @@ export const fetchAnimeFullDetails = async (id: string): Promise<Anime | null> =
 
   if (!animeData) return null;
 
+  // Initialize with empty arrays for type safety
+  const enhancedAnime: Anime = {
+    ...animeData,
+    genres: [],
+    alternative_titles: []
+  };
+
   // Get genres for this anime
-  const { data: genreData, error: genreError } = await supabase
-    .from("anime_genres")
-    .select(`
-      genres (
-        name
-      )
-    `)
-    .eq("anime_id", id);
+  try {
+    const { data: genreData, error: genreError } = await supabase
+      .from("anime_genres")
+      .select(`
+        genres (
+          name
+        )
+      `)
+      .eq("anime_id", id);
 
-  // Initialize genres array
-  animeData.genres = [];
-
-  if (!genreError && genreData) {
-    // Extract genre names and add to anime object
-    const genres = genreData.map((g: any) => g.genres?.name).filter(Boolean);
-    animeData.genres = genres;
+    if (!genreError && genreData) {
+      // Extract genre names and add to anime object
+      const genres = genreData.map((g: any) => g.genres?.name).filter(Boolean);
+      enhancedAnime.genres = genres;
+    }
+  } catch (error) {
+    console.error("Error fetching genres:", error);
   }
 
-  // Initialize alternative titles if not present
-  animeData.alternative_titles = animeData.alternative_titles || [];
-
-  return animeData;
+  return enhancedAnime;
 };
 
 // Fetch cast for an anime
