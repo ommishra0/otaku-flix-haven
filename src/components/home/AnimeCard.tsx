@@ -1,8 +1,9 @@
 
 import { Link } from 'react-router-dom';
+import { useInView } from '@/hooks/use-intersection-observer';
 
 export interface AnimeCardProps {
-  id: number;
+  id: number | string;
   title: string;
   image: string;
   episodeCount?: number;
@@ -12,15 +13,24 @@ export interface AnimeCardProps {
 }
 
 const AnimeCard = ({ id, title, image, episodeCount, rating, type, year }: AnimeCardProps) => {
+  const { ref, inView } = useInView({
+    triggerOnce: true,
+    rootMargin: '200px 0px',
+  });
+  
   return (
-    <Link to={`/anime/${id}`} className="anime-card group">
+    <Link to={`/anime/${id}`} className="anime-card group" ref={ref}>
       <div className="relative aspect-[3/4] overflow-hidden">
-        <img 
-          src={image} 
-          alt={title} 
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-          loading="lazy"
-        />
+        {inView ? (
+          <img 
+            src={image} 
+            alt={title} 
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+            loading="lazy"
+          />
+        ) : (
+          <div className="w-full h-full bg-anime-light animate-pulse"></div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
           <span className="text-sm text-gray-300">{episodeCount} Episodes</span>
           {rating && (

@@ -87,6 +87,47 @@ export type Database = {
         }
         Relationships: []
       }
+      anime_cast: {
+        Row: {
+          anime_id: string | null
+          character_name: string | null
+          created_at: string | null
+          id: string
+          image_url: string | null
+          name: string
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          anime_id?: string | null
+          character_name?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          role: string
+          updated_at?: string | null
+        }
+        Update: {
+          anime_id?: string | null
+          character_name?: string | null
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anime_cast_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       anime_categories: {
         Row: {
           anime_id: string
@@ -143,6 +184,79 @@ export type Database = {
             columns: ["genre_id"]
             isOneToOne: false
             referencedRelation: "genres"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anime_ratings: {
+        Row: {
+          anime_id: string | null
+          created_at: string | null
+          id: string
+          system: string
+          updated_at: string | null
+          value: string
+        }
+        Insert: {
+          anime_id?: string | null
+          created_at?: string | null
+          id?: string
+          system: string
+          updated_at?: string | null
+          value: string
+        }
+        Update: {
+          anime_id?: string | null
+          created_at?: string | null
+          id?: string
+          system?: string
+          updated_at?: string | null
+          value?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anime_ratings_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anime_trailers: {
+        Row: {
+          anime_id: string | null
+          created_at: string | null
+          id: string
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+          url: string
+        }
+        Insert: {
+          anime_id?: string | null
+          created_at?: string | null
+          id?: string
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+          url: string
+        }
+        Update: {
+          anime_id?: string | null
+          created_at?: string | null
+          id?: string
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "anime_trailers_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
             referencedColumns: ["id"]
           },
         ]
@@ -230,6 +344,7 @@ export type Database = {
       }
       episodes: {
         Row: {
+          air_date: string | null
           anime_id: string | null
           created_at: string | null
           description: string | null
@@ -238,12 +353,15 @@ export type Database = {
           embed_provider: string | null
           id: string
           number: number
+          quality_options: Json | null
+          subtitles: Json | null
           thumbnail_url: string | null
           title: string
           updated_at: string | null
           video_url: string | null
         }
         Insert: {
+          air_date?: string | null
           anime_id?: string | null
           created_at?: string | null
           description?: string | null
@@ -252,12 +370,15 @@ export type Database = {
           embed_provider?: string | null
           id?: string
           number: number
+          quality_options?: Json | null
+          subtitles?: Json | null
           thumbnail_url?: string | null
           title: string
           updated_at?: string | null
           video_url?: string | null
         }
         Update: {
+          air_date?: string | null
           anime_id?: string | null
           created_at?: string | null
           description?: string | null
@@ -266,6 +387,8 @@ export type Database = {
           embed_provider?: string | null
           id?: string
           number?: number
+          quality_options?: Json | null
+          subtitles?: Json | null
           thumbnail_url?: string | null
           title?: string
           updated_at?: string | null

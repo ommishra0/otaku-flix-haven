@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Plus, Edit, Trash2, Video, PlayCircle, UploadCloud } from "lucide-react";
+import { Plus, Edit, Trash2, Video, PlayCircle, UploadCloud, Subtitles, Film } from "lucide-react";
 
 const EpisodeManagement = () => {
   const [animeList, setAnimeList] = useState<any[]>([]);
@@ -21,7 +20,6 @@ const EpisodeManagement = () => {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedEpisode, setSelectedEpisode] = useState<any | null>(null);
   
-  // Add form state
   const [addFormData, setAddFormData] = useState({
     title: "",
     number: 1,
@@ -29,9 +27,11 @@ const EpisodeManagement = () => {
     thumbnailUrl: "",
     embedProvider: "filemoon",
     embedCode: "",
+    airDate: "",
+    subtitles: [] as Array<{ language: string; label: string; url: string }>,
+    qualityOptions: [] as Array<{ quality: string; label: string; url: string }>
   });
   
-  // Edit form state
   const [editFormData, setEditFormData] = useState({
     id: "",
     title: "",
@@ -41,6 +41,11 @@ const EpisodeManagement = () => {
     embedProvider: "",
     embedCode: "",
   });
+
+  const [showSubtitleDialog, setShowSubtitleDialog] = useState(false);
+  const [showQualityDialog, setShowQualityDialog] = useState(false);
+  const [currentSubtitle, setCurrentSubtitle] = useState({ language: "", label: "", url: "" });
+  const [currentQuality, setCurrentQuality] = useState({ quality: "", label: "", url: "" });
 
   useEffect(() => {
     fetchAnimeList();
@@ -81,7 +86,6 @@ const EpisodeManagement = () => {
       
       setEpisodeList(data || []);
       
-      // Get anime title
       const anime = animeList.find(a => a.id === animeId);
       if (anime) {
         setSelectedAnimeName(anime.title);
@@ -100,7 +104,6 @@ const EpisodeManagement = () => {
       return;
     }
     
-    // Set the next episode number
     const nextEpisodeNumber = episodeList.length > 0 
       ? Math.max(...episodeList.map(ep => ep.number)) + 1 
       : 1;
@@ -151,6 +154,48 @@ const EpisodeManagement = () => {
     }
   };
 
+  const addSubtitle = () => {
+    if (!currentSubtitle.language || !currentSubtitle.label || !currentSubtitle.url) {
+      toast.error("All subtitle fields are required");
+      return;
+    }
+    
+    setAddFormData({
+      ...addFormData,
+      subtitles: [...addFormData.subtitles, { ...currentSubtitle }]
+    });
+    
+    setCurrentSubtitle({ language: "", label: "", url: "" });
+    setShowSubtitleDialog(false);
+  };
+
+  const addQualityOption = () => {
+    if (!currentQuality.quality || !currentQuality.label || !currentQuality.url) {
+      toast.error("All quality option fields are required");
+      return;
+    }
+    
+    setAddFormData({
+      ...addFormData,
+      qualityOptions: [...addFormData.qualityOptions, { ...currentQuality }]
+    });
+    
+    setCurrentQuality({ quality: "", label: "", url: "" });
+    setShowQualityDialog(false);
+  };
+
+  const removeSubtitle = (index: number) => {
+    const newSubtitles = [...addFormData.subtitles];
+    newSubtitles.splice(index, 1);
+    setAddFormData({ ...addFormData, subtitles: newSubtitles });
+  };
+
+  const removeQualityOption = (index: number) => {
+    const newOptions = [...addFormData.qualityOptions];
+    newOptions.splice(index, 1);
+    setAddFormData({ ...addFormData, qualityOptions: newOptions });
+  };
+
   const submitAddEpisode = async () => {
     if (!selectedAnimeId) {
       toast.error('No anime selected');
@@ -163,7 +208,6 @@ const EpisodeManagement = () => {
     }
     
     try {
-      // Direct insert into episodes table
       const { data, error } = await supabase
         .from('episodes')
         .insert({
@@ -173,7 +217,10 @@ const EpisodeManagement = () => {
           description: addFormData.description,
           thumbnail_url: addFormData.thumbnailUrl,
           embed_provider: addFormData.embedProvider,
-          embed_code: addFormData.embedCode
+          embed_code: addFormData.embedCode,
+          air_date: addFormData.airDate ? new Date(addFormData.airDate).toISOString() : null,
+          subtitles: addFormData.subtitles.length > 0 ? addFormData.subtitles : null,
+          quality_options: addFormData.qualityOptions.length > 0 ? addFormData.qualityOptions : null
         })
         .select()
         .single();
@@ -187,11 +234,14 @@ const EpisodeManagement = () => {
       setShowAddDialog(false);
       setAddFormData({
         title: "",
-        number: addFormData.number + 1, // Increment for next episode
+        number: addFormData.number + 1,
         description: "",
         thumbnailUrl: "",
         embedProvider: "filemoon",
         embedCode: "",
+        airDate: "",
+        subtitles: [],
+        qualityOptions: []
       });
       
       fetchEpisodes(selectedAnimeId);
@@ -343,9 +393,8 @@ const EpisodeManagement = () => {
         )}
       </CardContent>
       
-      {/* Add Episode Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent className="bg-anime-dark border-gray-700 text-white">
+        <DialogContent className="bg-anime-dark border-gray-700 text-white max-w-4xl">
           <DialogHeader>
             <DialogTitle>Add New Episode</DialogTitle>
             <DialogDescription>
@@ -390,15 +439,28 @@ const EpisodeManagement = () => {
               />
             </div>
             
-            <div>
-              <Label htmlFor="episode-thumbnail">Thumbnail URL</Label>
-              <Input
-                id="episode-thumbnail"
-                value={addFormData.thumbnailUrl}
-                onChange={(e) => setAddFormData({...addFormData, thumbnailUrl: e.target.value})}
-                className="bg-anime-light border-gray-700 mt-1"
-                placeholder="https://example.com/thumbnail.jpg"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="episode-thumbnail">Thumbnail URL</Label>
+                <Input
+                  id="episode-thumbnail"
+                  value={addFormData.thumbnailUrl}
+                  onChange={(e) => setAddFormData({...addFormData, thumbnailUrl: e.target.value})}
+                  className="bg-anime-light border-gray-700 mt-1"
+                  placeholder="https://example.com/thumbnail.jpg"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="episode-air-date">Air Date</Label>
+                <Input
+                  id="episode-air-date"
+                  type="date"
+                  value={addFormData.airDate}
+                  onChange={(e) => setAddFormData({...addFormData, airDate: e.target.value})}
+                  className="bg-anime-light border-gray-700 mt-1"
+                />
+              </div>
             </div>
             
             <div>
@@ -434,6 +496,82 @@ const EpisodeManagement = () => {
                   : '<iframe src="https://example.com/embed/..." allowfullscreen></iframe>'}
               />
             </div>
+            
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <Label>Subtitles</Label>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setShowSubtitleDialog(true)}
+                  className="flex items-center gap-1"
+                >
+                  <Subtitles size={14} />
+                  <span>Add Subtitle</span>
+                </Button>
+              </div>
+              
+              {addFormData.subtitles.length > 0 ? (
+                <div className="space-y-2 mt-2">
+                  {addFormData.subtitles.map((subtitle, index) => (
+                    <div key={index} className="flex items-center justify-between bg-anime-light rounded p-2">
+                      <div>
+                        <span className="font-medium">{subtitle.label}</span>
+                        <span className="text-gray-400 text-sm ml-2">({subtitle.language})</span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeSubtitle(index)}
+                        className="text-red-500 hover:text-red-400"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-400 text-sm">No subtitles added</div>
+              )}
+            </div>
+            
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <Label>Quality Options</Label>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  onClick={() => setShowQualityDialog(true)}
+                  className="flex items-center gap-1"
+                >
+                  <Film size={14} />
+                  <span>Add Quality</span>
+                </Button>
+              </div>
+              
+              {addFormData.qualityOptions.length > 0 ? (
+                <div className="space-y-2 mt-2">
+                  {addFormData.qualityOptions.map((quality, index) => (
+                    <div key={index} className="flex items-center justify-between bg-anime-light rounded p-2">
+                      <div>
+                        <span className="font-medium">{quality.label}</span>
+                        <span className="text-gray-400 text-sm ml-2">({quality.quality})</span>
+                      </div>
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => removeQualityOption(index)}
+                        className="text-red-500 hover:text-red-400"
+                      >
+                        <Trash2 size={14} />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-gray-400 text-sm">No quality options added</div>
+              )}
+            </div>
           </div>
           
           <DialogFooter>
@@ -451,7 +589,124 @@ const EpisodeManagement = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Episode Dialog */}
+      <Dialog open={showSubtitleDialog} onOpenChange={setShowSubtitleDialog}>
+        <DialogContent className="bg-anime-dark border-gray-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Add Subtitle</DialogTitle>
+            <DialogDescription>
+              Add a subtitle track for this episode
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="subtitle-language">Language Code</Label>
+              <Input
+                id="subtitle-language"
+                value={currentSubtitle.language}
+                onChange={(e) => setCurrentSubtitle({...currentSubtitle, language: e.target.value})}
+                className="bg-anime-light border-gray-700 mt-1"
+                placeholder="en, es, fr, etc."
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="subtitle-label">Display Name</Label>
+              <Input
+                id="subtitle-label"
+                value={currentSubtitle.label}
+                onChange={(e) => setCurrentSubtitle({...currentSubtitle, label: e.target.value})}
+                className="bg-anime-light border-gray-700 mt-1"
+                placeholder="English, Spanish, etc."
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="subtitle-url">Subtitle URL (.vtt format)</Label>
+              <Input
+                id="subtitle-url"
+                value={currentSubtitle.url}
+                onChange={(e) => setCurrentSubtitle({...currentSubtitle, url: e.target.value})}
+                className="bg-anime-light border-gray-700 mt-1"
+                placeholder="https://example.com/subtitles.vtt"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSubtitleDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={addSubtitle}>
+              Add Subtitle
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={showQualityDialog} onOpenChange={setShowQualityDialog}>
+        <DialogContent className="bg-anime-dark border-gray-700 text-white">
+          <DialogHeader>
+            <DialogTitle>Add Quality Option</DialogTitle>
+            <DialogDescription>
+              Add a video quality option for this episode
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            <div>
+              <Label htmlFor="quality-resolution">Resolution</Label>
+              <Select 
+                value={currentQuality.quality} 
+                onValueChange={(value) => setCurrentQuality({...currentQuality, quality: value})}
+              >
+                <SelectTrigger className="bg-anime-light border-gray-700 mt-1">
+                  <SelectValue placeholder="Select resolution" />
+                </SelectTrigger>
+                <SelectContent className="bg-anime-dark border-gray-700">
+                  <SelectItem value="480p">480p</SelectItem>
+                  <SelectItem value="720p">720p</SelectItem>
+                  <SelectItem value="1080p">1080p</SelectItem>
+                  <SelectItem value="1440p">1440p</SelectItem>
+                  <SelectItem value="4K">4K</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div>
+              <Label htmlFor="quality-label">Display Label</Label>
+              <Input
+                id="quality-label"
+                value={currentQuality.label}
+                onChange={(e) => setCurrentQuality({...currentQuality, label: e.target.value})}
+                className="bg-anime-light border-gray-700 mt-1"
+                placeholder="480p SD, 1080p HD, etc."
+              />
+            </div>
+            
+            <div>
+              <Label htmlFor="quality-url">Video URL</Label>
+              <Input
+                id="quality-url"
+                value={currentQuality.url}
+                onChange={(e) => setCurrentQuality({...currentQuality, url: e.target.value})}
+                className="bg-anime-light border-gray-700 mt-1"
+                placeholder="https://example.com/video-480p.mp4"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowQualityDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={addQualityOption}>
+              Add Quality Option
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="bg-anime-dark border-gray-700 text-white">
           <DialogHeader>

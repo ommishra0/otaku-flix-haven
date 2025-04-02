@@ -5,7 +5,6 @@ import { Search } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { fetchAnimeCast, CastMember } from "@/services/animeService";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDebounce } from "@/hooks/use-debounce";
 
