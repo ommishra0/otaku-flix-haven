@@ -33,8 +33,8 @@ export interface Episode {
   embed_provider?: string;
   air_date?: string;
   duration?: string;
-  subtitles?: Subtitle[];
-  quality_options?: QualityOption[];
+  subtitles: Subtitle[];
+  quality_options: QualityOption[];
   created_at?: string;
   updated_at?: string;
 }
@@ -160,8 +160,8 @@ export const fetchEpisodes = async (animeId: string): Promise<Episode[]> => {
   // Process the subtitles and quality_options to ensure they're in the right format
   return (data || []).map(episode => ({
     ...episode,
-    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles : [],
-    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options : []
+    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles as Subtitle[] : [],
+    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options as QualityOption[] : []
   }));
 };
 
@@ -190,8 +190,8 @@ export const fetchAnimeEpisodes = async (animeId: string, page = 1, perPage = 10
   // Process the subtitles and quality_options to ensure they're in the right format
   const episodes = (data || []).map(episode => ({
     ...episode,
-    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles : [],
-    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options : []
+    subtitles: Array.isArray(episode.subtitles) ? episode.subtitles as Subtitle[] : [],
+    quality_options: Array.isArray(episode.quality_options) ? episode.quality_options as QualityOption[] : []
   }));
   
   return { 
@@ -217,8 +217,8 @@ export const fetchEpisode = async (episodeId: string): Promise<Episode | null> =
   if (data) {
     return {
       ...data,
-      subtitles: Array.isArray(data.subtitles) ? data.subtitles : [],
-      quality_options: Array.isArray(data.quality_options) ? data.quality_options : []
+      subtitles: Array.isArray(data.subtitles) ? data.subtitles as Subtitle[] : [],
+      quality_options: Array.isArray(data.quality_options) ? data.quality_options as QualityOption[] : []
     };
   }
 
@@ -250,12 +250,13 @@ export const fetchAnimeFullDetails = async (id: string): Promise<Anime | null> =
     `)
     .eq("anime_id", id);
 
+  // Initialize genres array
+  animeData.genres = [];
+
   if (!genreError && genreData) {
     // Extract genre names and add to anime object
-    const genres = genreData.map(g => g.genres.name);
+    const genres = genreData.map((g: any) => g.genres?.name).filter(Boolean);
     animeData.genres = genres;
-  } else {
-    animeData.genres = [];
   }
 
   // Initialize alternative titles if not present
@@ -267,30 +268,23 @@ export const fetchAnimeFullDetails = async (id: string): Promise<Anime | null> =
 // Fetch cast for an anime
 export const fetchAnimeCast = async (animeId: string, searchQuery = ""): Promise<CastMember[]> => {
   try {
-    // Use the REST API URL from supabase
-    const url = `${process.env.SUPABASE_URL || 'https://pkkkzluhsoxvqbkzhfkz.supabase.co'}/rest/v1/anime_cast?anime_id=eq.${animeId}&order=role.asc,name.asc`;
+    const { data, error } = await supabase
+      .from("anime_cast")
+      .select("*")
+      .eq("anime_id", animeId)
+      .order("role", { ascending: true });
     
-    // Set up headers for authentication
-    const headers = {
-      'apikey': process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE',
-      'Authorization': `Bearer ${process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE'}`,
-      'Content-Type': 'application/json'
-    };
-    
-    const response = await fetch(url, { headers });
-    if (!response.ok) throw new Error('Failed to fetch cast');
-    
-    const data = await response.json();
+    if (error) throw error;
     
     // Filter by search query if provided
-    if (searchQuery) {
+    if (searchQuery && data) {
       return data.filter((member: CastMember) => 
         member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (member.character_name && member.character_name.toLowerCase().includes(searchQuery.toLowerCase()))
       );
     }
     
-    return data;
+    return data || [];
   } catch (error) {
     console.error(`Error fetching cast for anime ${animeId}:`, error);
     return [];
@@ -300,20 +294,14 @@ export const fetchAnimeCast = async (animeId: string, searchQuery = ""): Promise
 // Fetch trailers for an anime
 export const fetchAnimeTrailers = async (animeId: string): Promise<Trailer[]> => {
   try {
-    // Use the REST API URL from supabase
-    const url = `${process.env.SUPABASE_URL || 'https://pkkkzluhsoxvqbkzhfkz.supabase.co'}/rest/v1/anime_trailers?anime_id=eq.${animeId}`;
+    const { data, error } = await supabase
+      .from("anime_trailers")
+      .select("*")
+      .eq("anime_id", animeId);
     
-    const headers = {
-      'apikey': process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE',
-      'Authorization': `Bearer ${process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE'}`,
-      'Content-Type': 'application/json'
-    };
+    if (error) throw error;
     
-    const response = await fetch(url, { headers });
-    if (!response.ok) throw new Error('Failed to fetch trailers');
-    
-    const data = await response.json();
-    return data;
+    return data || [];
   } catch (error) {
     console.error(`Error fetching trailers for anime ${animeId}:`, error);
     return [];
@@ -323,20 +311,14 @@ export const fetchAnimeTrailers = async (animeId: string): Promise<Trailer[]> =>
 // Fetch ratings for an anime
 export const fetchAnimeRatings = async (animeId: string): Promise<Rating[]> => {
   try {
-    // Use the REST API URL from supabase
-    const url = `${process.env.SUPABASE_URL || 'https://pkkkzluhsoxvqbkzhfkz.supabase.co'}/rest/v1/anime_ratings?anime_id=eq.${animeId}`;
+    const { data, error } = await supabase
+      .from("anime_ratings")
+      .select("*")
+      .eq("anime_id", animeId);
     
-    const headers = {
-      'apikey': process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE',
-      'Authorization': `Bearer ${process.env.SUPABASE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBra2t6bHVoc294dnFia3poZmt6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDMzMTk5NzQsImV4cCI6MjA1ODg5NTk3NH0.Dv6BGAfE60agwdMnkBUx6zhj9YgPM4dYERVfyxc1fuE'}`,
-      'Content-Type': 'application/json'
-    };
+    if (error) throw error;
     
-    const response = await fetch(url, { headers });
-    if (!response.ok) throw new Error('Failed to fetch ratings');
-    
-    const data = await response.json();
-    return data;
+    return data || [];
   } catch (error) {
     console.error(`Error fetching ratings for anime ${animeId}:`, error);
     return [];

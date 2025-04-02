@@ -208,6 +208,12 @@ const EpisodeManagement = () => {
     }
     
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast.error('You must be logged in to add episodes');
+        return;
+      }
+      
       const { data, error } = await supabase
         .from('episodes')
         .insert({

@@ -3,45 +3,28 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Play } from 'lucide-react';
 import { Button } from "@/components/ui/button";
+import { Anime } from '@/services/animeService';
 
-// Mock featured anime data
-const featuredAnime = [
-  {
-    id: 1,
-    title: "Demon Slayer: Kimetsu no Yaiba",
-    description: "Tanjiro Kamado's peaceful life is shattered after his family is slaughtered by a demon. His sister Nezuko is the sole survivor, but she has been transformed into a demon herself.",
-    image: "https://m.media-amazon.com/images/M/MV5BZjZjNzI5MDctY2Y4YS00NmM4LTljMmItZTFkOTExNGI3ODRhXkEyXkFqcGdeQXVyNjc3MjQzNTI@._V1_.jpg",
-    genre: ["Action", "Fantasy"],
-    rating: 4.9
-  },
-  {
-    id: 2,
-    title: "Attack on Titan",
-    description: "When man-eating Titans first appeared 100 years ago, humans found safety behind massive walls. But when a colossal Titan smashes through the barriers, humanity faces extinction.",
-    image: "https://flxt.tmsimg.com/assets/p10701949_b_v8_ah.jpg",
-    genre: ["Action", "Drama"],
-    rating: 4.8
-  },
-  {
-    id: 3,
-    title: "My Hero Academia",
-    description: "In a world where people with superpowers (called Quirks) are the norm, Izuku Midoriya has dreams of becoming a hero despite being bullied for not having a Quirk.",
-    image: "https://m.media-amazon.com/images/M/MV5BOGZmYjdjN2UtNjAwZi00YmEyLWFhNTEtNjM1OTc5ODg0MGEyXkEyXkFqcGdeQXVyMTA1NjQyNjkw._V1_FMjpg_UX1000_.jpg",
-    genre: ["Action", "Comedy"],
-    rating: 4.7
-  }
-];
+interface HeroProps {
+  featuredAnime: Anime[];
+}
 
-const Hero = () => {
+const Hero = ({ featuredAnime }: HeroProps) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   
   useEffect(() => {
+    if (featuredAnime.length === 0) return;
+    
     const interval = setInterval(() => {
       setCurrentSlide(prev => (prev + 1) % featuredAnime.length);
     }, 8000); // Change slide every 8 seconds
     
     return () => clearInterval(interval);
-  }, []);
+  }, [featuredAnime.length]);
+  
+  if (featuredAnime.length === 0) {
+    return null; // Don't render if no featured anime
+  }
   
   const anime = featuredAnime[currentSlide];
   
@@ -51,7 +34,7 @@ const Hero = () => {
       <div 
         className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000"
         style={{ 
-          backgroundImage: `url(${anime.image})`,
+          backgroundImage: `url(${anime.image_url || anime.banner_image_url || '/placeholder.svg'})`,
           opacity: 0.4
         }}
       />
@@ -64,7 +47,7 @@ const Hero = () => {
         <div className="container mx-auto px-4">
           <div className="max-w-2xl">
             <div className="flex gap-2 mb-3">
-              {anime.genre.map((g, index) => (
+              {(anime.genres || []).slice(0, 2).map((g, index) => (
                 <span key={index} className="anime-badge">{g}</span>
               ))}
             </div>
@@ -72,17 +55,19 @@ const Hero = () => {
             <h1 className="text-4xl md:text-5xl font-bold mb-3">{anime.title}</h1>
             
             <div className="flex items-center mb-4 text-yellow-400">
-              <span className="mr-2">★ {anime.rating}</span>
+              <span className="mr-2">★ {anime.rating || '4.5'}</span>
               <span className="text-gray-400">/ 5.0</span>
             </div>
             
-            <p className="text-gray-300 mb-6 text-lg line-clamp-3">{anime.description}</p>
+            <p className="text-gray-300 mb-6 text-lg line-clamp-3">{anime.description || 'No description available'}</p>
             
             <div className="flex gap-4">
-              <Button className="anime-btn-primary flex items-center gap-2 px-6 py-5">
-                <Play size={18} />
-                <span>Watch Now</span>
-              </Button>
+              <Link to={`/anime/${anime.id}`}>
+                <Button className="anime-btn-primary flex items-center gap-2 px-6 py-5">
+                  <Play size={18} />
+                  <span>Watch Now</span>
+                </Button>
+              </Link>
               
               <Link to={`/anime/${anime.id}`}>
                 <Button variant="outline" className="bg-transparent border-white hover:bg-white/10 px-6 py-5">
