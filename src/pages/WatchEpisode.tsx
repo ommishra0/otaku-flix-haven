@@ -1,10 +1,11 @@
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Share, ThumbsUp, ThumbsDown, MessageSquare, Play } from "lucide-react";
+import { ChevronLeft, ChevronRight, Share, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import AdBanner from "@/components/shared/AdBanner";
+import EnhancedVideoPlayer from "@/components/anime/EnhancedVideoPlayer";
 import { fetchAnimeAndEpisode, fetchComments, addComment, updateWatchHistory, likeEpisodeComment, dislikeEpisodeComment, Comment } from "@/services/episodeService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -21,7 +22,6 @@ const WatchEpisode = () => {
   const [isDisliked, setIsDisliked] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
   
   // Check if user is logged in
   useEffect(() => {
@@ -82,28 +82,21 @@ const WatchEpisode = () => {
     loadData();
   }, [animeId, episodeId]);
   
-  // Track video progress
-  useEffect(() => {
-    if (!videoRef.current || !user?.id || !episodeId) return;
-    
-    const videoElement = videoRef.current;
-    
-    const handleTimeUpdate = () => {
-      const progress = Math.floor(videoElement.currentTime);
-      const isComplete = videoElement.currentTime / videoElement.duration > 0.9;
-      
-      // Update watch history every 10 seconds to avoid too many requests
-      if (progress % 10 === 0 || isComplete) {
-        updateWatchHistory(user.id, episodeId, progress, isComplete);
-      }
-    };
-    
-    videoElement.addEventListener('timeupdate', handleTimeUpdate);
-    
-    return () => {
-      videoElement.removeEventListener('timeupdate', handleTimeUpdate);
-    };
-  }, [videoRef, user, episodeId]);
+  // Handle video progress tracking
+  const handleVideoProgress = (progress: number, completed: boolean) => {
+    if (user?.id && episodeId) {
+      updateWatchHistory(user.id, episodeId, progress, completed);
+    }
+  };
+  
+  const handleVideoError = (error: any) => {
+    console.error("Video playback error:", error);
+    toast({
+      title: "Playback Error",
+      description: "There was an error playing this video. Please try again later.",
+      variant: "destructive",
+    });
+  };
   
   const handleLike = () => {
     if (isLiked) {
@@ -231,6 +224,12 @@ const WatchEpisode = () => {
     );
   }
   
+  // Prepare quality options if available
+  const qualityOptions = episode.quality_options || [];
+  
+  // Prepare subtitles if available
+  const subtitles = episode.subtitles || [];
+  
   return (
     <MainLayout>
       <div className="mb-4">
@@ -243,7 +242,7 @@ const WatchEpisode = () => {
         </Link>
       </div>
       
-      {/* Video Player */}
+      {/* Enhanced Video Player */}
       <div className="relative bg-black aspect-video mb-6 rounded-lg overflow-hidden">
         {episode.embed_code ? (
           // Render embedded player (Filemoon, StreamTab, etc.)
@@ -252,21 +251,23 @@ const WatchEpisode = () => {
             dangerouslySetInnerHTML={{ __html: episode.embed_code }} 
           />
         ) : episode.video_url ? (
-          // Render native video player if direct video URL exists
-          <video 
-            ref={videoRef}
-            className="w-full h-full"
-            controls
+          // Render enhanced video player if direct video URL exists
+          <EnhancedVideoPlayer
+            videoUrl={episode.video_url}
             poster={episode.thumbnail_url}
-          >
-            <source src={episode.video_url} type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
+            subtitles={subtitles}
+            qualityOptions={qualityOptions}
+            onProgress={handleVideoProgress}
+            onError={handleVideoError}
+          />
         ) : (
           // Placeholder if no video source is available
-          <div className="absolute inset-0 flex items-center justify-center">
-            <p className="text-white">Video not available</p>
-            <Play size={48} className="text-white/50" />
+          <div className="absolute inset-0 flex items-center justify-center bg-anime-dark">
+            <p className="text-white text-center">
+              Video not available
+              <br />
+              <span className="text-sm text-gray-400">This episode doesn't have a video source yet.</span>
+            </p>
           </div>
         )}
       </div>
@@ -429,7 +430,7 @@ const WatchEpisode = () => {
                 <div className="flex items-center gap-2">
                   <div className="w-6 h-6 flex items-center justify-center rounded-full bg-black/20">
                     {ep.id === episode.id ? (
-                      <Play size={12} fill="currentColor" />
+                      <ChevronRight size={12} fill="currentColor" />
                     ) : (
                       ep.number
                     )}

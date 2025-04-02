@@ -213,8 +213,8 @@ const AdminDashboard = () => {
                     <PieChart 
                       data={popularAnimeData}
                       colors={['#FF6B6B', '#4ECDC4', '#FFD166', '#06D6A0', '#118AB2']}
-                      category="value"
                       index="name"
+                      category="value"
                     />
                   )}
                 </div>

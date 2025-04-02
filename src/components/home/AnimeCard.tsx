@@ -19,6 +19,7 @@ const AnimeCard = ({ id, title, image, episodeCount, rating, type, year }: Anime
           src={image} 
           alt={title} 
           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+          loading="lazy"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
           <span className="text-sm text-gray-300">{episodeCount} Episodes</span>

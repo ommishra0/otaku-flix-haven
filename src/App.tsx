@@ -19,6 +19,7 @@ import CategoryPage from "./pages/CategoryPage";
 import ForumPage from "./pages/ForumPage";
 import ForumTopicPage from "./pages/ForumTopicPage";
 import NewForumTopicPage from "./pages/NewForumTopicPage";
+import CastCrewPage from "./components/anime/CastCrewPage";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
               {/* User Routes */}
               <Route path="/" element={<Index />} />
               <Route path="/anime/:id" element={<AnimeDetails />} />
+              <Route path="/anime/:id/cast" element={<CastCrewPage />} />
               <Route path="/watch/:animeId/:episodeId" element={<WatchEpisode />} />
               <Route path="/anime" element={<AnimeList />} />
               <Route path="/genres/:genreId" element={<AnimeList />} />

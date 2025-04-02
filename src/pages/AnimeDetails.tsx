@@ -1,40 +1,97 @@
 
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { Play, Star, CalendarDays, Clock, Heart, Share } from "lucide-react";
+import { Play, Star, CalendarDays, Clock, Heart, Share, Users, Info } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
 import AnimeSection from "@/components/home/AnimeSection";
 import AdBanner from "@/components/shared/AdBanner";
-import { animeDetails, trendingAnime } from "@/data/mockData";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { fetchAnimeFullDetails, fetchAnimeEpisodes, fetchAnimeCast, fetchAnimeTrailers, fetchAnimeRatings } from "@/services/animeService";
+import TrailerSection from "@/components/anime/TrailerSection";
+import RatingDisplay from "@/components/anime/RatingDisplay";
+import { useInView } from "react-intersection-observer";
 
 const AnimeDetails = () => {
   const { id } = useParams<{ id: string }>();
   const [anime, setAnime] = useState<any>(null);
+  const [episodes, setEpisodes] = useState<any[]>([]);
+  const [cast, setCast] = useState<any[]>([]);
+  const [trailers, setTrailers] = useState<any[]>([]);
+  const [ratings, setRatings] = useState<any[]>([]);
   const [recommendations, setRecommendations] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // For pagination/infinite scroll
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  
+  // Intersection observer for infinite scrolling
+  const { ref: loadMoreRef, inView } = useInView({
+    threshold: 0.5,
+    triggerOnce: false,
+  });
+  
+  // Load anime data
   useEffect(() => {
-    // Simulate API fetch with a slight delay
-    setTimeout(() => {
-      if (id && animeDetails[Number(id)]) {
-        const data = animeDetails[Number(id)];
-        setAnime(data);
-        
-        // Get recommended anime
-        if (data.recommendations && data.recommendations.length > 0) {
-          const recsData = data.recommendations.map(recId => {
-            // Find in trending or popular anime
-            return [...trendingAnime].find(a => a.id === recId);
-          }).filter(Boolean);
-          
-          setRecommendations(recsData);
-        }
+    const loadAnimeData = async () => {
+      if (!id) return;
+      
+      setIsLoading(true);
+      
+      // Fetch anime details
+      const animeData = await fetchAnimeFullDetails(id);
+      if (animeData) {
+        setAnime(animeData);
       }
+      
+      // Fetch episodes (first page)
+      const episodesData = await fetchAnimeEpisodes(id, 1);
+      setEpisodes(episodesData.episodes);
+      setTotalPages(episodesData.totalPages);
+      
+      // Fetch cast info
+      const castData = await fetchAnimeCast(id);
+      setCast(castData);
+      
+      // Fetch trailers
+      const trailerData = await fetchAnimeTrailers(id);
+      setTrailers(trailerData);
+      
+      // Fetch ratings
+      const ratingData = await fetchAnimeRatings(id);
+      setRatings(ratingData);
+      
+      // Fetch recommended anime (implement this based on your recommendations system)
+      // For now, we'll leave it empty
+      
       setIsLoading(false);
-    }, 500);
+    };
+    
+    loadAnimeData();
   }, [id]);
+  
+  // Handle infinite scroll
+  useEffect(() => {
+    if (inView && page < totalPages && !isLoadingMore) {
+      loadMoreEpisodes();
+    }
+  }, [inView, page, totalPages]);
+  
+  const loadMoreEpisodes = async () => {
+    if (!id || isLoadingMore) return;
+    
+    setIsLoadingMore(true);
+    const nextPage = page + 1;
+    
+    const episodesData = await fetchAnimeEpisodes(id, nextPage);
+    
+    // Append new episodes to existing ones
+    setEpisodes([...episodes, ...episodesData.episodes]);
+    setPage(nextPage);
+    setIsLoadingMore(false);
+  };
   
   if (isLoading) {
     return (
@@ -66,7 +123,7 @@ const AnimeDetails = () => {
       <div className="relative h-[400px] md:h-[500px] -mx-4 mb-8">
         <div 
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${anime.bannerImage})` }}
+          style={{ backgroundImage: `url(${anime.banner_image_url})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-anime-dark via-anime-dark/60 to-transparent" />
       </div>
@@ -76,9 +133,10 @@ const AnimeDetails = () => {
         <div className="md:col-span-1">
           <div className="relative">
             <img 
-              src={anime.image} 
+              src={anime.image_url} 
               alt={anime.title} 
               className="w-full rounded-md shadow-lg"
+              loading="lazy"
             />
             <div className="absolute top-2 right-2 bg-anime-primary text-white text-sm px-3 py-1 rounded-md font-medium">
               {anime.type}
@@ -102,44 +160,49 @@ const AnimeDetails = () => {
             </div>
           </div>
           
+          {/* Ratings display */}
+          <div className="mt-6">
+            <RatingDisplay ratings={ratings} className="mb-4" />
+          </div>
+          
           {/* Anime Details */}
-          <div className="mt-6 space-y-4">
+          <div className="mt-4 space-y-4">
             <div className="flex items-center gap-2 text-yellow-400">
               <Star size={18} fill="currentColor" />
-              <span className="font-semibold">{anime.rating}</span>
+              <span className="font-semibold">{anime.rating || "N/A"}</span>
               <span className="text-gray-400 text-sm">/ 5.0</span>
             </div>
             
             <div className="space-y-2 mt-4">
               <div className="flex justify-between">
                 <span className="text-gray-400">Type:</span>
-                <span>{anime.type}</span>
+                <span>{anime.type || "Unknown"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Status:</span>
-                <span>{anime.status}</span>
+                <span>{anime.status || "Unknown"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Studio:</span>
-                <span>{anime.studio}</span>
+                <span>{anime.studio || "Unknown"}</span>
               </div>
               <div className="flex justify-between items-start">
                 <span className="text-gray-400">Released:</span>
                 <span className="flex items-center gap-1">
                   <CalendarDays size={14} />
-                  {anime.releaseYear}
+                  {anime.release_year || "Unknown"}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-400">Episodes:</span>
-                <span>{anime.episodes?.length || 0}</span>
+                <span>{episodes.length || 0}</span>
               </div>
             </div>
             
             <div className="pt-4">
               <h3 className="text-lg font-semibold mb-2">Genres</h3>
               <div className="flex flex-wrap gap-2">
-                {anime.genres.map((genre: string, index: number) => (
+                {anime.genres?.map((genre: string, index: number) => (
                   <Link 
                     key={index} 
                     to={`/genres/${genre.toLowerCase()}`}
@@ -150,6 +213,16 @@ const AnimeDetails = () => {
                 ))}
               </div>
             </div>
+            
+            {/* Cast & Crew Link */}
+            {cast.length > 0 && (
+              <div className="pt-4">
+                <Link to={`/anime/${id}/cast`} className="flex items-center gap-2 text-anime-primary hover:underline">
+                  <Users size={16} />
+                  <span>View Full Cast & Crew</span>
+                </Link>
+              </div>
+            )}
           </div>
           
           <AdBanner position="sidebar" className="mt-8 h-[400px]" />
@@ -159,10 +232,15 @@ const AnimeDetails = () => {
         <div className="md:col-span-2">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">{anime.title}</h1>
           
-          {anime.alternativeTitles?.length > 0 && (
+          {anime.alternative_titles?.length > 0 && (
             <div className="text-gray-400 mb-4">
-              {anime.alternativeTitles.join(" • ")}
+              {anime.alternative_titles.join(" • ")}
             </div>
+          )}
+          
+          {/* Trailer Section */}
+          {trailers.length > 0 && (
+            <TrailerSection trailers={trailers} className="mb-8" />
           )}
           
           <Tabs defaultValue="episodes" className="w-full mt-6">
@@ -174,7 +252,7 @@ const AnimeDetails = () => {
             
             <TabsContent value="episodes" className="pt-4">
               <div className="space-y-4">
-                {anime.episodes.map((episode: any) => (
+                {episodes.map((episode) => (
                   <Link 
                     key={episode.id}
                     to={`/watch/${anime.id}/${episode.id}`}
@@ -183,16 +261,17 @@ const AnimeDetails = () => {
                     <div className="flex flex-col sm:flex-row">
                       <div className="relative w-full sm:w-[180px] h-[100px]">
                         <img 
-                          src={episode.thumbnail} 
+                          src={episode.thumbnail_url || "/placeholder.svg"} 
                           alt={episode.title} 
                           className="w-full h-full object-cover"
+                          loading="lazy"
                         />
                         <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity">
                           <Play size={30} className="text-white" />
                         </div>
                         <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded-sm flex items-center">
                           <Clock size={12} className="mr-1" />
-                          {episode.duration}
+                          {episode.duration || "?"}
                         </div>
                       </div>
                       <div className="p-4">
@@ -201,14 +280,39 @@ const AnimeDetails = () => {
                             EP {episode.number}
                           </span>
                           <h3 className="font-semibold">{episode.title}</h3>
+                          {episode.air_date && (
+                            <span className="text-xs text-gray-400 ml-auto">
+                              {new Date(episode.air_date).toLocaleDateString()}
+                            </span>
+                          )}
                         </div>
                         <p className="text-gray-400 text-sm mt-2 line-clamp-2">
-                          {episode.description}
+                          {episode.description || "No description available."}
                         </p>
                       </div>
                     </div>
                   </Link>
                 ))}
+                
+                {/* Loading more indicator */}
+                {page < totalPages && (
+                  <div 
+                    ref={loadMoreRef}
+                    className="py-6 flex justify-center"
+                  >
+                    {isLoadingMore ? (
+                      <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-anime-primary"></div>
+                    ) : (
+                      <Button onClick={loadMoreEpisodes}>Load More Episodes</Button>
+                    )}
+                  </div>
+                )}
+                
+                {episodes.length === 0 && (
+                  <div className="text-center py-12 text-gray-400">
+                    No episodes available for this anime yet.
+                  </div>
+                )}
               </div>
             </TabsContent>
             
@@ -216,12 +320,42 @@ const AnimeDetails = () => {
               <div className="space-y-6">
                 <div>
                   <h3 className="text-xl font-semibold mb-3">Synopsis</h3>
-                  <p className="text-gray-300 leading-relaxed">{anime.description}</p>
+                  <p className="text-gray-300 leading-relaxed">{anime.description || "No synopsis available."}</p>
                 </div>
                 
                 <div>
                   <h3 className="text-xl font-semibold mb-3">Characters</h3>
-                  <p className="text-gray-400">Character information will be added soon.</p>
+                  {cast.length > 0 ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      {cast.slice(0, 6).map((member) => (
+                        <div key={member.id} className="flex gap-3">
+                          <div className="w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                            <img 
+                              src={member.image_url || "/placeholder.svg"} 
+                              alt={member.name}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+                          <div>
+                            <p className="font-medium">{member.name}</p>
+                            <p className="text-sm text-gray-400">{member.character_name}</p>
+                          </div>
+                        </div>
+                      ))}
+                      
+                      {cast.length > 6 && (
+                        <Link 
+                          to={`/anime/${id}/cast`}
+                          className="col-span-2 text-center mt-4 text-anime-primary hover:underline"
+                        >
+                          View All Cast & Crew
+                        </Link>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400">No character information available.</p>
+                  )}
                 </div>
               </div>
             </TabsContent>
@@ -237,9 +371,10 @@ const AnimeDetails = () => {
                     >
                       <div className="relative aspect-[3/4] overflow-hidden">
                         <img 
-                          src={rec.image} 
+                          src={rec.image_url} 
                           alt={rec.title} 
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy"
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
                           <div className="flex items-center mt-1">
@@ -249,7 +384,7 @@ const AnimeDetails = () => {
                       </div>
                       <div className="p-3">
                         <h3 className="anime-title">{rec.title}</h3>
-                        <p className="text-sm text-gray-400">{rec.year}</p>
+                        <p className="text-sm text-gray-400">{rec.release_year}</p>
                       </div>
                     </Link>
                   ))}
