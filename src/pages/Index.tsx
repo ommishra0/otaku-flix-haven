@@ -6,6 +6,7 @@ import AnimeSection from "@/components/home/AnimeSection";
 import GenreTags from "@/components/home/GenreTags";
 import AdBanner from "@/components/shared/AdBanner";
 import { fetchTrendingAnime, fetchPopularAnime, Anime } from "@/services/animeService";
+import { animeToCardProps } from "@/components/home/AnimeCard";
 
 const Index = () => {
   const [trendingAnime, setTrendingAnime] = useState<Anime[]>([]);
@@ -16,19 +17,23 @@ const Index = () => {
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
-      const [trending, popular] = await Promise.all([
-        fetchTrendingAnime(10),
-        fetchPopularAnime(10)
-      ]);
-      
-      setTrendingAnime(trending);
-      setPopularAnime(popular);
-      
-      // For new releases, we'll use a subset of the popular anime for now
-      // In a real implementation, this would fetch the most recently added anime
-      setNewReleases(popular.slice(0, 6));
-      
-      setIsLoading(false);
+      try {
+        const [trending, popular] = await Promise.all([
+          fetchTrendingAnime(10),
+          fetchPopularAnime(10)
+        ]);
+        
+        setTrendingAnime(trending);
+        setPopularAnime(popular);
+        
+        // For new releases, we'll use a subset of the popular anime for now
+        // In a real implementation, this would fetch the most recently added anime
+        setNewReleases(popular.slice(0, 6));
+      } catch (error) {
+        console.error("Error fetching anime data:", error);
+      } finally {
+        setIsLoading(false);
+      }
     };
     
     fetchData();
@@ -49,19 +54,19 @@ const Index = () => {
           <AnimeSection 
             title="Trending Now" 
             viewAllLink="/trending"
-            animeList={trendingAnime}
+            animeList={trendingAnime.map(animeToCardProps)}
           />
           
           <AnimeSection 
             title="Popular Anime" 
             viewAllLink="/popular"
-            animeList={popularAnime}
+            animeList={popularAnime.map(animeToCardProps)}
           />
           
           <AnimeSection 
             title="New Releases" 
             viewAllLink="/latest"
-            animeList={newReleases}
+            animeList={newReleases.map(animeToCardProps)}
           />
           
           <GenreTags />

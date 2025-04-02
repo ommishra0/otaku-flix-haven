@@ -15,6 +15,8 @@ export interface Anime {
   is_trending?: boolean;
   is_popular?: boolean;
   is_featured?: boolean;
+  genres?: string[];
+  alternative_titles?: string[];
   created_at?: string;
   updated_at?: string;
 }
@@ -158,6 +160,34 @@ export const fetchEpisodes = async (animeId: string): Promise<Episode[]> => {
   return data || [];
 };
 
+// Add function for paginated episodes
+export const fetchAnimeEpisodes = async (animeId: string, page = 1, perPage = 10): Promise<{episodes: Episode[], totalPages: number}> => {
+  // Calculate the range for pagination
+  const from = (page - 1) * perPage;
+  const to = from + perPage - 1;
+  
+  // Fetch episodes with pagination
+  const { data, error, count } = await supabase
+    .from("episodes")
+    .select("*", { count: 'exact' })
+    .eq("anime_id", animeId)
+    .order("number", { ascending: true })
+    .range(from, to);
+  
+  if (error) {
+    console.error(`Error fetching episodes for anime ${animeId}:`, error);
+    return { episodes: [], totalPages: 0 };
+  }
+  
+  // Calculate total pages
+  const totalPages = count ? Math.ceil(count / perPage) : 0;
+  
+  return { 
+    episodes: data || [], 
+    totalPages 
+  };
+};
+
 // Fetch a specific episode
 export const fetchEpisode = async (episodeId: string): Promise<Episode | null> => {
   const { data, error } = await supabase
@@ -174,55 +204,162 @@ export const fetchEpisode = async (episodeId: string): Promise<Episode | null> =
   return data;
 };
 
-// Fetch cast for an anime
-export const fetchAnimeCast = async (animeId: string, searchQuery = ""): Promise<CastMember[]> => {
-  let query = supabase
-    .from("anime_cast")
+// Fetch complete anime details including related data
+export const fetchAnimeFullDetails = async (id: string): Promise<Anime | null> => {
+  const { data: animeData, error: animeError } = await supabase
+    .from("anime")
     .select("*")
-    .eq("anime_id", animeId)
-    .order("role", { ascending: true })
-    .order("name", { ascending: true });
+    .eq("id", id)
+    .single();
 
-  if (searchQuery) {
-    query = query.or(`name.ilike.%${searchQuery}%,character_name.ilike.%${searchQuery}%`);
+  if (animeError) {
+    console.error(`Error fetching anime ${id}:`, animeError);
+    return null;
   }
 
-  const { data, error } = await query;
+  if (!animeData) return null;
 
-  if (error) {
+  // Get genres for this anime
+  const { data: genreData, error: genreError } = await supabase
+    .from("anime_genres")
+    .select(`
+      genres (
+        name
+      )
+    `)
+    .eq("anime_id", id);
+
+  if (!genreError && genreData) {
+    // Extract genre names and add to anime object
+    const genres = genreData.map(g => g.genres.name);
+    animeData.genres = genres;
+  }
+
+  // Get alternative titles if you have them in your database
+  // This is a placeholder - adjust according to your database structure
+  animeData.alternative_titles = animeData.alternative_titles || [];
+
+  return animeData;
+};
+
+// Fetch cast for an anime
+export const fetchAnimeCast = async (animeId: string, searchQuery = ""): Promise<CastMember[]> => {
+  // Using fetch directly because of issues with the typed client
+  const url = `${supabase.supabaseUrl}/rest/v1/anime_cast?anime_id=eq.${animeId}&order=role.asc,name.asc`;
+  
+  const headers = {
+    'apikey': supabase.supabaseKey,
+    'Authorization': `Bearer ${supabase.supabaseKey}`,
+    'Content-Type': 'application/json'
+  };
+  
+  try {
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error('Failed to fetch cast');
+    
+    const data = await response.json();
+    
+    // Filter by search query if provided
+    if (searchQuery) {
+      return data.filter((member: CastMember) => 
+        member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (member.character_name && member.character_name.toLowerCase().includes(searchQuery.toLowerCase()))
+      );
+    }
+    
+    return data;
+  } catch (error) {
     console.error(`Error fetching cast for anime ${animeId}:`, error);
     return [];
   }
-
-  return data || [];
 };
 
 // Fetch trailers for an anime
 export const fetchAnimeTrailers = async (animeId: string): Promise<Trailer[]> => {
-  const { data, error } = await supabase
-    .from("anime_trailers")
-    .select("*")
-    .eq("anime_id", animeId);
-
-  if (error) {
+  // Using fetch directly because of issues with the typed client
+  const url = `${supabase.supabaseUrl}/rest/v1/anime_trailers?anime_id=eq.${animeId}`;
+  
+  const headers = {
+    'apikey': supabase.supabaseKey,
+    'Authorization': `Bearer ${supabase.supabaseKey}`,
+    'Content-Type': 'application/json'
+  };
+  
+  try {
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error('Failed to fetch trailers');
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
     console.error(`Error fetching trailers for anime ${animeId}:`, error);
     return [];
   }
-
-  return data || [];
 };
 
 // Fetch ratings for an anime
 export const fetchAnimeRatings = async (animeId: string): Promise<Rating[]> => {
-  const { data, error } = await supabase
-    .from("anime_ratings")
-    .select("*")
-    .eq("anime_id", animeId);
-
-  if (error) {
+  // Using fetch directly because of issues with the typed client
+  const url = `${supabase.supabaseUrl}/rest/v1/anime_ratings?anime_id=eq.${animeId}`;
+  
+  const headers = {
+    'apikey': supabase.supabaseKey,
+    'Authorization': `Bearer ${supabase.supabaseKey}`,
+    'Content-Type': 'application/json'
+  };
+  
+  try {
+    const response = await fetch(url, { headers });
+    if (!response.ok) throw new Error('Failed to fetch ratings');
+    
+    const data = await response.json();
+    return data;
+  } catch (error) {
     console.error(`Error fetching ratings for anime ${animeId}:`, error);
     return [];
   }
+};
 
-  return data || [];
+// Add a function to update episode streaming info
+export const updateEpisodeStreamingInfo = async (
+  episodeId: string,
+  videoUrl: string,
+  subtitles: { language: string; url: string }[],
+  qualityOptions: { quality: string; url: string }[]
+): Promise<boolean> => {
+  try {
+    // Format the subtitles array for jsonb storage
+    const formattedSubtitles = subtitles.map(sub => ({
+      language: sub.language,
+      label: sub.language, // Using language as label for now
+      url: sub.url
+    }));
+    
+    // Format the quality options array for jsonb storage
+    const formattedQualityOptions = qualityOptions.map(opt => ({
+      quality: opt.quality,
+      label: `${opt.quality}`, // Using quality as label
+      url: opt.url
+    }));
+    
+    const { error } = await supabase
+      .from("episodes")
+      .update({
+        video_url: videoUrl,
+        subtitles: formattedSubtitles,
+        quality_options: formattedQualityOptions,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", episodeId);
+    
+    if (error) {
+      console.error("Error updating episode streaming info:", error);
+      return false;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("Error in updateEpisodeStreamingInfo:", error);
+    return false;
+  }
 };

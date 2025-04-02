@@ -1,6 +1,6 @@
-
 import { Link } from 'react-router-dom';
 import { useInView } from '@/hooks/use-intersection-observer';
+import { Anime } from '@/services/animeService';
 
 export interface AnimeCardProps {
   id: number | string;
@@ -52,6 +52,17 @@ const AnimeCard = ({ id, title, image, episodeCount, rating, type, year }: Anime
       </div>
     </Link>
   );
+};
+
+export const animeToCardProps = (anime: Anime): AnimeCardProps => {
+  return {
+    id: anime.id,
+    title: anime.title,
+    image: anime.image_url || '/placeholder.svg',
+    rating: anime.rating,
+    type: anime.type,
+    year: anime.release_year,
+  };
 };
 
 export default AnimeCard;

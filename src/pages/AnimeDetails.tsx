@@ -7,19 +7,32 @@ import { Button } from "@/components/ui/button";
 import AnimeSection from "@/components/home/AnimeSection";
 import AdBanner from "@/components/shared/AdBanner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { fetchAnimeFullDetails, fetchAnimeEpisodes, fetchAnimeCast, fetchAnimeTrailers, fetchAnimeRatings } from "@/services/animeService";
+import { 
+  fetchAnimeById, 
+  fetchEpisodes, 
+  fetchAnimeCast, 
+  fetchAnimeTrailers,
+  fetchAnimeRatings,
+  fetchAnimeEpisodes,
+  Anime, 
+  Episode, 
+  CastMember, 
+  Trailer, 
+  Rating 
+} from "@/services/animeService";
 import TrailerSection from "@/components/anime/TrailerSection";
 import RatingDisplay from "@/components/anime/RatingDisplay";
 import { useInView } from "react-intersection-observer";
+import { animeToCardProps } from "@/components/home/AnimeCard";
 
 const AnimeDetails = () => {
   const { id } = useParams<{ id: string }>();
-  const [anime, setAnime] = useState<any>(null);
-  const [episodes, setEpisodes] = useState<any[]>([]);
-  const [cast, setCast] = useState<any[]>([]);
-  const [trailers, setTrailers] = useState<any[]>([]);
-  const [ratings, setRatings] = useState<any[]>([]);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [anime, setAnime] = useState<Anime | null>(null);
+  const [episodes, setEpisodes] = useState<Episode[]>([]);
+  const [cast, setCast] = useState<CastMember[]>([]);
+  const [trailers, setTrailers] = useState<Trailer[]>([]);
+  const [ratings, setRatings] = useState<Rating[]>([]);
+  const [recommendations, setRecommendations] = useState<Anime[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // For pagination/infinite scroll
@@ -40,33 +53,39 @@ const AnimeDetails = () => {
       
       setIsLoading(true);
       
-      // Fetch anime details
-      const animeData = await fetchAnimeFullDetails(id);
-      if (animeData) {
-        setAnime(animeData);
+      try {
+        // Fetch anime details
+        const animeData = await fetchAnimeById(id);
+        if (animeData) {
+          setAnime(animeData);
+        }
+        
+        // Fetch episodes (first page)
+        const episodesData = await fetchAnimeEpisodes(id, 1);
+        setEpisodes(episodesData.episodes);
+        setTotalPages(episodesData.totalPages);
+        
+        // Fetch cast info
+        const castData = await fetchAnimeCast(id);
+        setCast(castData);
+        
+        // Fetch trailers
+        const trailerData = await fetchAnimeTrailers(id);
+        setTrailers(trailerData);
+        
+        // Fetch ratings
+        const ratingData = await fetchAnimeRatings(id);
+        setRatings(ratingData);
+        
+        // Fetch recommended anime (implement this based on your recommendations system)
+        // For now, we'll leave it empty
+        setRecommendations([]);
+        
+      } catch (error) {
+        console.error("Error loading anime data:", error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Fetch episodes (first page)
-      const episodesData = await fetchAnimeEpisodes(id, 1);
-      setEpisodes(episodesData.episodes);
-      setTotalPages(episodesData.totalPages);
-      
-      // Fetch cast info
-      const castData = await fetchAnimeCast(id);
-      setCast(castData);
-      
-      // Fetch trailers
-      const trailerData = await fetchAnimeTrailers(id);
-      setTrailers(trailerData);
-      
-      // Fetch ratings
-      const ratingData = await fetchAnimeRatings(id);
-      setRatings(ratingData);
-      
-      // Fetch recommended anime (implement this based on your recommendations system)
-      // For now, we'll leave it empty
-      
-      setIsLoading(false);
     };
     
     loadAnimeData();
@@ -85,12 +104,17 @@ const AnimeDetails = () => {
     setIsLoadingMore(true);
     const nextPage = page + 1;
     
-    const episodesData = await fetchAnimeEpisodes(id, nextPage);
-    
-    // Append new episodes to existing ones
-    setEpisodes([...episodes, ...episodesData.episodes]);
-    setPage(nextPage);
-    setIsLoadingMore(false);
+    try {
+      const episodesData = await fetchAnimeEpisodes(id, nextPage);
+      
+      // Append new episodes to existing ones
+      setEpisodes(prev => [...prev, ...episodesData.episodes]);
+      setPage(nextPage);
+    } catch (error) {
+      console.error("Error loading more episodes:", error);
+    } finally {
+      setIsLoadingMore(false);
+    }
   };
   
   if (isLoading) {
@@ -123,7 +147,7 @@ const AnimeDetails = () => {
       <div className="relative h-[400px] md:h-[500px] -mx-4 mb-8">
         <div 
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${anime.banner_image_url})` }}
+          style={{ backgroundImage: `url(${anime.banner_image_url || anime.image_url})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-anime-dark via-anime-dark/60 to-transparent" />
       </div>
@@ -133,13 +157,13 @@ const AnimeDetails = () => {
         <div className="md:col-span-1">
           <div className="relative">
             <img 
-              src={anime.image_url} 
+              src={anime.image_url || '/placeholder.svg'} 
               alt={anime.title} 
               className="w-full rounded-md shadow-lg"
               loading="lazy"
             />
             <div className="absolute top-2 right-2 bg-anime-primary text-white text-sm px-3 py-1 rounded-md font-medium">
-              {anime.type}
+              {anime.type || 'TV'}
             </div>
           </div>
           
@@ -202,7 +226,7 @@ const AnimeDetails = () => {
             <div className="pt-4">
               <h3 className="text-lg font-semibold mb-2">Genres</h3>
               <div className="flex flex-wrap gap-2">
-                {anime.genres?.map((genre: string, index: number) => (
+                {anime.genres?.map((genre, index) => (
                   <Link 
                     key={index} 
                     to={`/genres/${genre.toLowerCase()}`}
@@ -371,7 +395,7 @@ const AnimeDetails = () => {
                     >
                       <div className="relative aspect-[3/4] overflow-hidden">
                         <img 
-                          src={rec.image_url} 
+                          src={rec.image_url || "/placeholder.svg"} 
                           alt={rec.title} 
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                           loading="lazy"
@@ -402,7 +426,7 @@ const AnimeDetails = () => {
       {recommendations.length > 0 && (
         <AnimeSection 
           title="You May Also Like" 
-          animeList={recommendations}
+          animeList={recommendations.map(animeToCardProps)}
         />
       )}
     </MainLayout>
