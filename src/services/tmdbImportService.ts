@@ -1,6 +1,5 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { TMDB_API_KEY, TMDB_BASE_URL } from "@/services/tmdbService";
 import { toast } from "sonner";
 
 export interface TMDBSeason {
@@ -153,12 +152,20 @@ export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<str
       toast.info(`Anime "${anime.name}" already exists in the database.`);
       return existingAnime[0].id;
     } else {
-      // Normalize status to match allowed values
-      let normalizedStatus = anime.status;
-      if (!['Ongoing', 'Completed', 'Upcoming', 'Canceled', 'Unknown', 'Returning Series'].includes(normalizedStatus)) {
-        if (normalizedStatus === 'Ended') normalizedStatus = 'Completed';
-        else if (normalizedStatus === 'Returning Series') normalizedStatus = 'Ongoing';
-        else normalizedStatus = 'Unknown';
+      // Robust status normalization
+      const statusMappings: { [key: string]: string } = {
+        'Ended': 'Completed',
+        'Returning Series': 'Ongoing',
+        'In Production': 'Ongoing',
+        'Pilot': 'Upcoming',
+        'Canceled': 'Canceled'
+      };
+
+      let normalizedStatus = statusMappings[anime.status] || anime.status;
+      
+      // Fallback to 'Unknown' if status is not recognized
+      if (!['Ongoing', 'Completed', 'Upcoming', 'Canceled', 'Unknown'].includes(normalizedStatus)) {
+        normalizedStatus = 'Unknown';
       }
       
       // Prepare release year
