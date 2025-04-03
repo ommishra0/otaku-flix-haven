@@ -385,11 +385,7 @@ export const fetchTrendingFromTMDB = async (page = 1) => {
     return animeResults;
   } catch (error) {
     console.error('Error fetching trending anime from TMDB:', error);
-    toast({
-      title: "Error",
-      description: "Failed to load trending anime",
-      variant: "destructive"
-    });
+    toast.error("Failed to load trending anime");
     return [];
   }
 };
