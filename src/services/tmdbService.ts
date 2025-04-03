@@ -1,9 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // TMDB API configuration
-export const TMDB_API_KEY = process.env.VITE_TMDB_API_KEY || '';
+export const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 export const ANIME_GENRE_ID = 16; // Animation genre ID in TMDB
 

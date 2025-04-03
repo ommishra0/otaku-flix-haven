@@ -39,6 +39,11 @@ export interface TMDBAnimeDetail {
 
 export const searchTMDBAnime = async (query: string): Promise<TMDBAnimeDetail[]> => {
   try {
+    if (!TMDB_API_KEY) {
+      toast.error("TMDB API key is missing. Please configure the VITE_TMDB_API_KEY environment variable.");
+      return [];
+    }
+    
     const response = await fetch(
       `${TMDB_BASE_URL}/search/tv?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(query)}&page=1`
     );
@@ -69,6 +74,11 @@ export const searchTMDBAnime = async (query: string): Promise<TMDBAnimeDetail[]>
 
 export const getTMDBAnimeDetail = async (tmdbId: number): Promise<TMDBAnimeDetail | null> => {
   try {
+    if (!TMDB_API_KEY) {
+      toast.error("TMDB API key is missing. Please configure the VITE_TMDB_API_KEY environment variable.");
+      return null;
+    }
+    
     const response = await fetch(
       `${TMDB_BASE_URL}/tv/${tmdbId}?api_key=${TMDB_API_KEY}&append_to_response=seasons`
     );
@@ -88,6 +98,11 @@ export const getTMDBAnimeDetail = async (tmdbId: number): Promise<TMDBAnimeDetai
 
 export const getTMDBSeasonDetail = async (tmdbId: number, seasonNumber: number): Promise<{ episodes: TMDBEpisode[] } | null> => {
   try {
+    if (!TMDB_API_KEY) {
+      toast.error("TMDB API key is missing. Please configure the VITE_TMDB_API_KEY environment variable.");
+      return null;
+    }
+    
     const response = await fetch(
       `${TMDB_BASE_URL}/tv/${tmdbId}/season/${seasonNumber}?api_key=${TMDB_API_KEY}`
     );
