@@ -317,8 +317,8 @@ const EpisodeManagement = () => {
         <div className="mb-6">
           <Label htmlFor="anime-select" className="mb-2 block">Select Anime</Label>
           <div className={`flex ${isMobile ? 'flex-col' : 'flex-row'} gap-2`}>
-            <Select onValueChange={(value) => setSelectedAnimeId(value)} className={isMobile ? 'w-full mb-2' : 'w-72'}>
-              <SelectTrigger className="bg-anime-light border-gray-700">
+            <Select onValueChange={(value) => setSelectedAnimeId(value)}>
+              <SelectTrigger className={`bg-anime-light border-gray-700 ${isMobile ? 'w-full mb-2' : 'w-72'}`}>
                 <SelectValue placeholder="Select an anime" />
               </SelectTrigger>
               <SelectContent className="bg-anime-dark border-gray-700">
