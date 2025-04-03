@@ -2,6 +2,10 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
+// Import constants from tmdbService or define them here if they're missing
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
+const TMDB_API_KEY = process.env.TMDB_API_KEY || ""; // This will be replaced with the actual key from environment
+
 export interface TMDBSeason {
   id: number;
   name: string;
@@ -215,6 +219,14 @@ export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<str
 
 export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason): Promise<string | null> => {
   try {
+    // Verify user is authenticated
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.error("No authenticated session found");
+      toast.error("Authentication required to import seasons");
+      return null;
+    }
+
     const { data: existingSeason, error: checkError } = await supabase
       .from('seasons')
       .select('id')
@@ -278,6 +290,14 @@ export const importEpisodesToDatabase = async (
 ): Promise<number> => {
   let successCount = 0;
   
+  // Verify user is authenticated before batch operations
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (!sessionData.session) {
+    console.error("No authenticated session found for episode import");
+    toast.error("Authentication required to import episodes");
+    return 0;
+  }
+  
   for (const episode of episodes) {
     try {
       const { data: existingEpisode, error: checkError } = await supabase
@@ -296,19 +316,13 @@ export const importEpisodesToDatabase = async (
       
       if (existingEpisode && existingEpisode.length > 0) {
         console.log(`Episode ${seasonNumber}x${episode.episode_number} already exists with ID: ${existingEpisode[0].id}`);
+        successCount++; // Count as success since it's already there
         continue;
-      }
-      
-      // Get admin user info to check for RLS
-      const { data: adminSession } = await supabase.auth.getSession();
-      if (!adminSession?.session) {
-        console.error("No admin session available for episode insert");
-        toast.error("Admin authentication required to import episodes");
-        return successCount;
       }
       
       console.log(`Inserting episode ${seasonNumber}x${episode.episode_number} for anime ID: ${animeId}, season ID: ${seasonId}`);
       
+      // Using the authenticated user's session from above
       const { error: insertError } = await supabase
         .from('episodes')
         .insert({
@@ -350,6 +364,14 @@ export const importEpisodesToDatabase = async (
 
 export const bulkImportAnimeWithSeasonsAndEpisodes = async (anime: TMDBAnimeDetail): Promise<boolean> => {
   try {
+    // Verify authenticated session at the start
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.error("No authenticated session found for bulk import");
+      toast.error("Authentication required to perform bulk import");
+      return false;
+    }
+    
     console.log("Starting bulk import for:", anime.name);
     
     const animeId = await importAnimeToDatabase(anime);
@@ -406,6 +428,14 @@ export const importSpecificSeasonsForAnime = async (
   seasonNumbers: number[]
 ): Promise<boolean> => {
   try {
+    // Verify authenticated session at the start
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.error("No authenticated session found for specific seasons import");
+      toast.error("Authentication required to import selected seasons");
+      return false;
+    }
+    
     console.log(`Starting import for specific seasons of ${anime.name}: ${seasonNumbers.join(', ')}`);
     
     const animeId = await importAnimeToDatabase(anime);
