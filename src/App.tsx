@@ -1,97 +1,102 @@
 
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { ThemeProvider } from "@/components/ui/theme-provider";
+import { Toaster } from "sonner";
+import Index from "@/pages/Index";
+import NotFound from "@/pages/NotFound";
+import Auth from "@/pages/Auth";
+import AnimeDetails from "@/pages/AnimeDetails";
 import { AdminAuthProvider } from "@/contexts/AdminAuthContext";
+import AdminLogin from "@/pages/AdminLogin";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import WatchEpisode from "@/pages/WatchEpisode";
 import { AuthProvider } from "@/contexts/AuthContext";
+import AnimeList from "@/pages/AnimeList";
+import CategoryPage from "@/pages/CategoryPage";
 import ProtectedAdminRoute from "@/components/admin/ProtectedAdminRoute";
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import AnimeDetails from "./pages/AnimeDetails";
-import WatchEpisode from "./pages/WatchEpisode";
-import AnimeList from "./pages/AnimeList";
-import AdminLogin from "./pages/AdminLogin";
-import AdminDashboard from "./pages/admin/AdminDashboard";
-import Auth from "./pages/Auth";
-import CategoryPage from "./pages/CategoryPage";
-import ForumPage from "./pages/ForumPage";
-import ForumTopicPage from "./pages/ForumTopicPage";
-import NewForumTopicPage from "./pages/NewForumTopicPage";
-import CastCrewPage from "./components/anime/CastCrewPage";
+import ForumPage from "@/pages/ForumPage";
+import ForumTopicPage from "@/pages/ForumTopicPage";
+import NewForumTopicPage from "@/pages/NewForumTopicPage";
+import CastCrewPage from "@/components/anime/CastCrewPage";
+import AnimeImport from "@/pages/admin/AnimeImport";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <BrowserRouter>
-      <AuthProvider>
-        <AdminAuthProvider>
-          <TooltipProvider>
+function App() {
+  return (
+    <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <BrowserRouter>
+        <AuthProvider>
+          <AdminAuthProvider>
             <Routes>
-              {/* User Routes */}
+              {/* Public Routes */}
               <Route path="/" element={<Index />} />
+              <Route path="*" element={<NotFound />} />
+              <Route path="/auth" element={<Auth />} />
               <Route path="/anime/:id" element={<AnimeDetails />} />
               <Route path="/anime/:id/cast" element={<CastCrewPage />} />
               <Route path="/watch/:animeId/:episodeId" element={<WatchEpisode />} />
               <Route path="/anime" element={<AnimeList />} />
-              <Route path="/genres/:genreId" element={<AnimeList />} />
-              <Route path="/genres" element={<AnimeList />} />
-              <Route path="/trending" element={<AnimeList />} />
-              <Route path="/popular" element={<AnimeList />} />
-              <Route path="/seasonal" element={<AnimeList />} />
-              <Route path="/a-z" element={<AnimeList />} />
-              <Route path="/search" element={<AnimeList />} />
-              <Route path="/auth" element={<Auth />} />
-              
-              {/* Category Routes */}
-              <Route path="/categories" element={<CategoryPage />} />
-              <Route path="/categories/:id" element={<CategoryPage />} />
-              
-              {/* Forum Routes */}
+              <Route path="/category/:categoryId" element={<CategoryPage />} />
               <Route path="/forum" element={<ForumPage />} />
-              <Route path="/forum/topic/:id" element={<ForumTopicPage />} />
+              <Route path="/forum/topic/:topicId" element={<ForumTopicPage />} />
               <Route path="/forum/new" element={<NewForumTopicPage />} />
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<AdminLogin />} />
-              <Route path="/admin/dashboard" element={
-                <ProtectedAdminRoute>
-                  <AdminDashboard />
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/anime" element={
-                <ProtectedAdminRoute>
-                  <AdminDashboard />
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/episodes" element={
-                <ProtectedAdminRoute>
-                  <AdminDashboard />
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/categories" element={
-                <ProtectedAdminRoute>
-                  <AdminDashboard />
-                </ProtectedAdminRoute>
-              } />
-              <Route path="/admin/settings" element={
-                <ProtectedAdminRoute>
-                  <AdminDashboard />
-                </ProtectedAdminRoute>
-              } />
-              
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
+              <Route 
+                path="/admin/dashboard" 
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminDashboard />
+                  </ProtectedAdminRoute>
+                } 
+              />
+              <Route 
+                path="/admin/anime" 
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminDashboard />
+                  </ProtectedAdminRoute>
+                } 
+              />
+              <Route 
+                path="/admin/episodes" 
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminDashboard />
+                  </ProtectedAdminRoute>
+                } 
+              />
+              <Route 
+                path="/admin/categories" 
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminDashboard />
+                  </ProtectedAdminRoute>
+                } 
+              />
+              <Route 
+                path="/admin/settings" 
+                element={
+                  <ProtectedAdminRoute>
+                    <AdminDashboard />
+                  </ProtectedAdminRoute>
+                } 
+              />
+              <Route 
+                path="/admin/import" 
+                element={
+                  <ProtectedAdminRoute>
+                    <AnimeImport />
+                  </ProtectedAdminRoute>
+                } 
+              />
             </Routes>
-            <Toaster />
-            <Sonner />
-          </TooltipProvider>
-        </AdminAuthProvider>
-      </AuthProvider>
-    </BrowserRouter>
-  </QueryClientProvider>
-);
+            <Toaster richColors position="top-center" />
+          </AdminAuthProvider>
+        </AuthProvider>
+      </BrowserRouter>
+    </ThemeProvider>
+  );
+}
 
 export default App;

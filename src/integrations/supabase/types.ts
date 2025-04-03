@@ -46,6 +46,7 @@ export type Database = {
           status: string | null
           studio: string | null
           title: string
+          tmdb_id: number | null
           type: string | null
           updated_at: string | null
         }
@@ -64,6 +65,7 @@ export type Database = {
           status?: string | null
           studio?: string | null
           title: string
+          tmdb_id?: number | null
           type?: string | null
           updated_at?: string | null
         }
@@ -82,6 +84,7 @@ export type Database = {
           status?: string | null
           studio?: string | null
           title?: string
+          tmdb_id?: number | null
           type?: string | null
           updated_at?: string | null
         }
@@ -352,11 +355,15 @@ export type Database = {
           embed_code: string | null
           embed_provider: string | null
           id: string
+          import_status: string | null
           number: number
           quality_options: Json | null
+          season_id: string | null
+          season_number: number | null
           subtitles: Json | null
           thumbnail_url: string | null
           title: string
+          tmdb_id: number | null
           updated_at: string | null
           video_url: string | null
         }
@@ -369,11 +376,15 @@ export type Database = {
           embed_code?: string | null
           embed_provider?: string | null
           id?: string
+          import_status?: string | null
           number: number
           quality_options?: Json | null
+          season_id?: string | null
+          season_number?: number | null
           subtitles?: Json | null
           thumbnail_url?: string | null
           title: string
+          tmdb_id?: number | null
           updated_at?: string | null
           video_url?: string | null
         }
@@ -386,11 +397,15 @@ export type Database = {
           embed_code?: string | null
           embed_provider?: string | null
           id?: string
+          import_status?: string | null
           number?: number
           quality_options?: Json | null
+          season_id?: string | null
+          season_number?: number | null
           subtitles?: Json | null
           thumbnail_url?: string | null
           title?: string
+          tmdb_id?: number | null
           updated_at?: string | null
           video_url?: string | null
         }
@@ -400,6 +415,13 @@ export type Database = {
             columns: ["anime_id"]
             isOneToOne: false
             referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "episodes_season_id_fkey"
+            columns: ["season_id"]
+            isOneToOne: false
+            referencedRelation: "seasons"
             referencedColumns: ["id"]
           },
         ]
@@ -534,6 +556,53 @@ export type Database = {
           username?: string | null
         }
         Relationships: []
+      }
+      seasons: {
+        Row: {
+          air_date: string | null
+          anime_id: string | null
+          created_at: string | null
+          id: string
+          name: string
+          overview: string | null
+          poster_path: string | null
+          season_number: number
+          tmdb_id: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          air_date?: string | null
+          anime_id?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          overview?: string | null
+          poster_path?: string | null
+          season_number: number
+          tmdb_id?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          air_date?: string | null
+          anime_id?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          overview?: string | null
+          poster_path?: string | null
+          season_number?: number
+          tmdb_id?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seasons_anime_id_fkey"
+            columns: ["anime_id"]
+            isOneToOne: false
+            referencedRelation: "anime"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_genre_preferences: {
         Row: {

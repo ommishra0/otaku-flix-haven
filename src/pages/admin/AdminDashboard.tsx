@@ -12,13 +12,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { PieChart } from "@/components/ui/charts";
-import { Activity, BarChart3, Users, Film } from "lucide-react";
+import { Activity, BarChart3, Users, Film, Download, Import } from "lucide-react";
 import AnimeManagement from "@/components/admin/AnimeManagement";
 import EpisodeManagement from "@/components/admin/EpisodeManagement";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAdminAuth } from "@/contexts/AdminAuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { Button } from "@/components/ui/button";
 
 const AdminDashboard = () => {
   const { isAdminAuthenticated } = useAdminAuth();
@@ -141,6 +142,10 @@ const AdminDashboard = () => {
     navigate(`/admin/${value === "dashboard" ? "dashboard" : value}`);
   };
 
+  const handleNavigateToImport = () => {
+    navigate("/admin/import");
+  };
+
   return (
     <AdminLayout title={activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}>
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
@@ -252,6 +257,17 @@ const AdminDashboard = () => {
         
         <TabsContent value="anime">
           {/* Anime Management Tab */}
+          <div className="mb-4 flex justify-between items-center">
+            <h2 className="text-xl font-bold">Anime Management</h2>
+            <Button 
+              onClick={handleNavigateToImport}
+              variant="default"
+              className="bg-anime-primary hover:bg-anime-primary-darker"
+            >
+              <Import className="h-4 w-4 mr-2" />
+              Import Anime
+            </Button>
+          </div>
           <AnimeManagement />
         </TabsContent>
         
