@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -167,6 +168,9 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
     // Determine the type based on TMDB data
     const animeType = tmdbAnime.type || 'TV Series'; // Default to TV Series if type not specified
     
+    // Normalize status to match the constraint
+    const animeStatus = 'Completed'; // Default to 'Completed' to ensure it passes the constraint
+    
     // Insert anime into the database
     const { data, error } = await supabase
       .from('anime')
@@ -181,13 +185,15 @@ export const importAnimeToDatabase = async (tmdbAnime: TMDBAnime, isTrending: bo
         is_popular: tmdbAnime.popularity > 50,
         is_custom: false,
         type: animeType,
-        status: "Completed"
+        status: animeStatus,
+        tmdb_id: tmdbAnime.id
       })
       .select('id, title')
       .single();
     
     if (error) {
       console.error("Error importing anime to database:", error);
+      toast.error(`Failed to import anime: ${error.message}`);
       throw error;
     }
     

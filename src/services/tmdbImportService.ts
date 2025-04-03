@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { TMDB_API_KEY, TMDB_BASE_URL } from "@/services/tmdbService";
 import { toast } from "sonner";
@@ -40,7 +41,7 @@ export interface TMDBAnimeDetail {
 export const searchTMDBAnime = async (query: string): Promise<TMDBAnimeDetail[]> => {
   try {
     if (!TMDB_API_KEY) {
-      toast.error("TMDB API key is missing. Please configure the VITE_TMDB_API_KEY environment variable.");
+      toast.error("TMDB API key is missing. Please configure the environment variable.");
       return [];
     }
     
@@ -75,7 +76,7 @@ export const searchTMDBAnime = async (query: string): Promise<TMDBAnimeDetail[]>
 export const getTMDBAnimeDetail = async (tmdbId: number): Promise<TMDBAnimeDetail | null> => {
   try {
     if (!TMDB_API_KEY) {
-      toast.error("TMDB API key is missing. Please configure the VITE_TMDB_API_KEY environment variable.");
+      toast.error("TMDB API key is missing. Please configure the environment variable.");
       return null;
     }
     
@@ -99,7 +100,7 @@ export const getTMDBAnimeDetail = async (tmdbId: number): Promise<TMDBAnimeDetai
 export const getTMDBSeasonDetail = async (tmdbId: number, seasonNumber: number): Promise<{ episodes: TMDBEpisode[] } | null> => {
   try {
     if (!TMDB_API_KEY) {
-      toast.error("TMDB API key is missing. Please configure the VITE_TMDB_API_KEY environment variable.");
+      toast.error("TMDB API key is missing. Please configure the environment variable.");
       return null;
     }
     
@@ -122,20 +123,48 @@ export const getTMDBSeasonDetail = async (tmdbId: number, seasonNumber: number):
 
 export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<string | null> => {
   try {
+    // Ensure we have an admin session before attempting to insert
+    const { data: sessionData } = await supabase.auth.getSession();
+    if (!sessionData.session) {
+      console.error("No authenticated session found");
+      toast.error("Authentication required to import anime");
+      return null;
+    }
+
+    console.log("Attempting to import anime:", anime.name);
+
+    // Check if anime already exists by TMDB ID
     const { data: existingAnime, error: checkError } = await supabase
       .from('anime')
       .select('id, title, tmdb_id')
       .eq('tmdb_id', anime.id)
       .limit(1);
     
-    if (checkError) throw checkError;
+    if (checkError) {
+      console.error("Error checking existing anime:", checkError);
+      toast.error(`Failed to check if anime exists: ${checkError.message}`);
+      return null;
+    }
     
     let animeId: string;
     
     if (existingAnime && existingAnime.length > 0) {
+      console.log(`Anime "${anime.name}" already exists with ID: ${existingAnime[0].id}`);
       toast.info(`Anime "${anime.name}" already exists in the database.`);
       return existingAnime[0].id;
     } else {
+      // Normalize status to match allowed values
+      let normalizedStatus = anime.status;
+      if (!['Ongoing', 'Completed', 'Upcoming', 'Canceled', 'Unknown', 'Returning Series'].includes(normalizedStatus)) {
+        if (normalizedStatus === 'Ended') normalizedStatus = 'Completed';
+        else if (normalizedStatus === 'Returning Series') normalizedStatus = 'Ongoing';
+        else normalizedStatus = 'Unknown';
+      }
+      
+      // Prepare release year
+      const releaseYear = anime.first_air_date ? new Date(anime.first_air_date).getFullYear() : null;
+
+      // Insert the anime with validated data
       const { data: newAnime, error: insertError } = await supabase
         .from('anime')
         .insert({
@@ -143,25 +172,36 @@ export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<str
           description: anime.overview,
           image_url: anime.poster_path ? `https://image.tmdb.org/t/p/w500${anime.poster_path}` : null,
           banner_image_url: anime.backdrop_path ? `https://image.tmdb.org/t/p/original${anime.backdrop_path}` : null,
-          release_year: anime.first_air_date ? new Date(anime.first_air_date).getFullYear() : null,
+          release_year: releaseYear,
           rating: anime.vote_average,
-          status: anime.status,
+          status: normalizedStatus,
           tmdb_id: anime.id,
           type: 'TV Series',
           is_custom: false
         })
         .select('id');
       
-      if (insertError) throw insertError;
-      if (!newAnime || newAnime.length === 0) throw new Error("Failed to insert anime");
+      if (insertError) {
+        console.error("Error importing anime to database:", insertError);
+        toast.error(`Failed to import anime: ${insertError.message}`);
+        return null;
+      }
+      
+      if (!newAnime || newAnime.length === 0) {
+        console.error("Failed to insert anime - no ID returned");
+        toast.error("Failed to insert anime to database");
+        return null;
+      }
       
       animeId = newAnime[0].id;
+      console.log(`Successfully inserted anime "${anime.name}" with ID: ${animeId}`);
       toast.success(`Added anime "${anime.name}" to the database.`);
       return animeId;
     }
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Error importing anime to database:", error);
-    toast.error("Failed to import anime to database");
+    toast.error(`Failed to import anime: ${errorMsg}`);
     return null;
   }
 };
@@ -177,10 +217,12 @@ export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason
     
     if (checkError) {
       console.error("Error checking if season exists:", checkError);
-      throw checkError;
+      toast.error(`Failed to check if season exists: ${checkError.message}`);
+      return null;
     }
     
     if (existingSeason && existingSeason.length > 0) {
+      console.log(`Season ${season.season_number} already exists with ID: ${existingSeason[0].id}`);
       toast.info(`Season ${season.season_number} already exists for this anime.`);
       return existingSeason[0].id;
     }
@@ -200,18 +242,23 @@ export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason
     
     if (insertError) {
       console.error("Error inserting new season:", insertError);
-      throw insertError;
+      toast.error(`Failed to import season: ${insertError.message}`);
+      return null;
     }
     
     if (!newSeason || newSeason.length === 0) {
-      throw new Error("Failed to insert season");
+      console.error("Failed to insert season - no ID returned");
+      toast.error("Failed to insert season to database");
+      return null;
     }
     
+    console.log(`Successfully inserted season ${season.season_number} with ID: ${newSeason[0].id}`);
     toast.success(`Added season ${season.season_number}: "${season.name}"`);
     return newSeason[0].id;
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Error importing season to database:", error);
-    toast.error(`Failed to import season ${season.season_number}`);
+    toast.error(`Failed to import season ${season.season_number}: ${errorMsg}`);
     return null;
   }
 };
@@ -235,12 +282,25 @@ export const importEpisodesToDatabase = async (
         .eq('season_number', seasonNumber)
         .limit(1);
       
-      if (checkError) throw checkError;
-      
-      if (existingEpisode && existingEpisode.length > 0) {
-        console.log(`Episode ${seasonNumber}x${episode.episode_number} already exists.`);
+      if (checkError) {
+        console.error(`Error checking if episode ${seasonNumber}x${episode.episode_number} exists:`, checkError);
         continue;
       }
+      
+      if (existingEpisode && existingEpisode.length > 0) {
+        console.log(`Episode ${seasonNumber}x${episode.episode_number} already exists with ID: ${existingEpisode[0].id}`);
+        continue;
+      }
+      
+      // Get admin user info to check for RLS
+      const { data: adminSession } = await supabase.auth.getSession();
+      if (!adminSession?.session) {
+        console.error("No admin session available for episode insert");
+        toast.error("Admin authentication required to import episodes");
+        return successCount;
+      }
+      
+      console.log(`Inserting episode ${seasonNumber}x${episode.episode_number} for anime ID: ${animeId}, season ID: ${seasonId}`);
       
       const { error: insertError } = await supabase
         .from('episodes')
@@ -249,8 +309,8 @@ export const importEpisodesToDatabase = async (
           season_id: seasonId,
           season_number: seasonNumber,
           number: episode.episode_number,
-          title: episode.name,
-          description: episode.overview,
+          title: episode.name || `Episode ${episode.episode_number}`,
+          description: episode.overview || '',
           thumbnail_url: episode.still_path ? `https://image.tmdb.org/t/p/w300${episode.still_path}` : null,
           air_date: episode.air_date,
           tmdb_id: episode.id,
@@ -259,11 +319,18 @@ export const importEpisodesToDatabase = async (
           embed_code: null
         });
       
-      if (insertError) throw insertError;
+      if (insertError) {
+        console.error(`Error importing episode ${seasonNumber}x${episode.episode_number}:`, insertError);
+        toast.error(`Failed to import episode ${seasonNumber}x${episode.episode_number}: ${insertError.message}`);
+        continue;
+      }
       
+      console.log(`Successfully imported episode ${seasonNumber}x${episode.episode_number}`);
       successCount++;
     } catch (error) {
+      const errorMsg = error instanceof Error ? error.message : String(error);
       console.error(`Error importing episode ${seasonNumber}x${episode.episode_number}:`, error);
+      toast.error(`Failed to import episode ${seasonNumber}x${episode.episode_number}: ${errorMsg}`);
     }
   }
   
@@ -276,23 +343,36 @@ export const importEpisodesToDatabase = async (
 
 export const bulkImportAnimeWithSeasonsAndEpisodes = async (anime: TMDBAnimeDetail): Promise<boolean> => {
   try {
+    console.log("Starting bulk import for:", anime.name);
+    
     const animeId = await importAnimeToDatabase(anime);
-    if (!animeId) return false;
+    if (!animeId) {
+      console.error("Failed to import anime to database");
+      return false;
+    }
     
     let totalSeasons = 0;
     let totalEpisodes = 0;
     
     for (const season of anime.seasons) {
-      if (season.season_number === 0) continue;
+      if (season.season_number === 0) continue; // Skip specials
       
+      console.log(`Processing season ${season.season_number}: ${season.name}`);
       const seasonId = await importSeasonToDatabase(animeId, season);
-      if (!seasonId) continue;
+      if (!seasonId) {
+        console.error(`Failed to import season ${season.season_number}`);
+        continue;
+      }
       
       totalSeasons++;
       
       const seasonDetail = await getTMDBSeasonDetail(anime.id, season.season_number);
-      if (!seasonDetail) continue;
+      if (!seasonDetail) {
+        console.error(`Failed to fetch details for season ${season.season_number}`);
+        continue;
+      }
       
+      console.log(`Importing ${seasonDetail.episodes.length} episodes for season ${season.season_number}`);
       const episodesImported = await importEpisodesToDatabase(
         animeId, 
         seasonId, 
@@ -303,11 +383,13 @@ export const bulkImportAnimeWithSeasonsAndEpisodes = async (anime: TMDBAnimeDeta
       totalEpisodes += episodesImported;
     }
     
+    console.log(`Import complete: ${totalSeasons} seasons and ${totalEpisodes} episodes`);
     toast.success(`Successfully imported anime "${anime.name}" with ${totalSeasons} seasons and ${totalEpisodes} episodes!`);
     return true;
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Error in bulk import:", error);
-    toast.error("Failed to complete bulk import");
+    toast.error(`Failed to complete bulk import: ${errorMsg}`);
     return false;
   }
 };
@@ -317,24 +399,40 @@ export const importSpecificSeasonsForAnime = async (
   seasonNumbers: number[]
 ): Promise<boolean> => {
   try {
+    console.log(`Starting import for specific seasons of ${anime.name}: ${seasonNumbers.join(', ')}`);
+    
     const animeId = await importAnimeToDatabase(anime);
-    if (!animeId) return false;
+    if (!animeId) {
+      console.error("Failed to import anime to database");
+      return false;
+    }
     
     let totalSeasons = 0;
     let totalEpisodes = 0;
     
     for (const seasonNumber of seasonNumbers) {
       const season = anime.seasons.find(s => s.season_number === seasonNumber);
-      if (!season) continue;
+      if (!season) {
+        console.error(`Season ${seasonNumber} not found in anime data`);
+        continue;
+      }
       
+      console.log(`Processing season ${seasonNumber}: ${season.name}`);
       const seasonId = await importSeasonToDatabase(animeId, season);
-      if (!seasonId) continue;
+      if (!seasonId) {
+        console.error(`Failed to import season ${seasonNumber}`);
+        continue;
+      }
       
       totalSeasons++;
       
       const seasonDetail = await getTMDBSeasonDetail(anime.id, seasonNumber);
-      if (!seasonDetail) continue;
+      if (!seasonDetail) {
+        console.error(`Failed to fetch details for season ${seasonNumber}`);
+        continue;
+      }
       
+      console.log(`Importing ${seasonDetail.episodes.length} episodes for season ${seasonNumber}`);
       const episodesImported = await importEpisodesToDatabase(
         animeId, 
         seasonId, 
@@ -345,11 +443,13 @@ export const importSpecificSeasonsForAnime = async (
       totalEpisodes += episodesImported;
     }
     
+    console.log(`Import complete: ${totalSeasons} seasons and ${totalEpisodes} episodes`);
     toast.success(`Successfully imported ${totalSeasons} seasons and ${totalEpisodes} episodes for "${anime.name}"!`);
     return true;
   } catch (error) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
     console.error("Error in specific seasons import:", error);
-    toast.error("Failed to import selected seasons");
+    toast.error(`Failed to import selected seasons: ${errorMsg}`);
     return false;
   }
 };
