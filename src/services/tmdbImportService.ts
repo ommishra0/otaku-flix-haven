@@ -128,7 +128,7 @@ export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<str
     // If anime exists, return its ID
     if (existingAnime && existingAnime.length > 0) {
       toast.info(`Anime "${anime.name}" already exists in the database.`);
-      animeId = existingAnime[0].id;
+      return existingAnime[0].id;
     } else {
       // Insert new anime
       const { data: newAnime, error: insertError } = await supabase
@@ -145,16 +145,15 @@ export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<str
           type: 'TV Series',
           is_custom: false
         })
-        .select('id')
-        .single();
+        .select('id');
       
       if (insertError) throw insertError;
+      if (!newAnime || newAnime.length === 0) throw new Error("Failed to insert anime");
       
-      animeId = newAnime.id;
+      animeId = newAnime[0].id;
       toast.success(`Added anime "${anime.name}" to the database.`);
+      return animeId;
     }
-    
-    return animeId;
   } catch (error) {
     console.error("Error importing anime to database:", error);
     toast.error("Failed to import anime to database");
@@ -173,7 +172,10 @@ export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason
       .eq('season_number', season.season_number)
       .limit(1);
     
-    if (checkError) throw checkError;
+    if (checkError) {
+      console.error("Error checking if season exists:", checkError);
+      throw checkError;
+    }
     
     if (existingSeason && existingSeason.length > 0) {
       toast.info(`Season ${season.season_number} already exists for this anime.`);
@@ -192,13 +194,19 @@ export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason
         poster_path: season.poster_path ? `https://image.tmdb.org/t/p/w500${season.poster_path}` : null,
         tmdb_id: season.id
       })
-      .select('id')
-      .single();
+      .select('id');
     
-    if (insertError) throw insertError;
+    if (insertError) {
+      console.error("Error inserting new season:", insertError);
+      throw insertError;
+    }
+    
+    if (!newSeason || newSeason.length === 0) {
+      throw new Error("Failed to insert season");
+    }
     
     toast.success(`Added season ${season.season_number}: "${season.name}"`);
-    return newSeason.id;
+    return newSeason[0].id;
   } catch (error) {
     console.error("Error importing season to database:", error);
     toast.error(`Failed to import season ${season.season_number}`);
