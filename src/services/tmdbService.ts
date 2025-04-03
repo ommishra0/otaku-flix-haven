@@ -2,7 +2,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // TMDB API configuration
-export const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
+export const TMDB_API_KEY = 'd1aef4ce97f1eb865be6aabf156b6775';
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 export const ANIME_GENRE_ID = 16; // Animation genre ID in TMDB
 
@@ -344,5 +344,52 @@ export const addEpisodeWithEmbed = async (
     console.error("Error adding episode with embed:", error);
     toast.error("Could not add episode to database");
     return null;
+  }
+};
+
+// Fetch anime by TMDB ID
+export const fetchAnimeByTMDB = async (tmdbId: number) => {
+  try {
+    const { data, error } = await supabase
+      .from('anime')
+      .select('*')
+      .eq('tmdb_id', tmdbId)
+      .single();
+    
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Error fetching anime by TMDB ID:", error);
+    return null;
+  }
+};
+
+// Fetch popular anime from TMDB
+export const fetchTrendingFromTMDB = async (page = 1) => {
+  try {
+    const response = await fetch(
+      `${TMDB_BASE_URL}/trending/tv/week?api_key=${TMDB_API_KEY}&page=${page}`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch trending anime');
+    }
+    
+    const data = await response.json();
+    
+    // Filter for animation genre
+    const animeResults = data.results.filter((show: any) => 
+      show.genre_ids && show.genre_ids.includes(ANIME_GENRE_ID)
+    );
+    
+    return animeResults;
+  } catch (error) {
+    console.error('Error fetching trending anime from TMDB:', error);
+    toast({
+      title: "Error",
+      description: "Failed to load trending anime",
+      variant: "destructive"
+    });
+    return [];
   }
 };

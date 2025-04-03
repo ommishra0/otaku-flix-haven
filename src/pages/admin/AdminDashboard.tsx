@@ -70,28 +70,40 @@ const AdminDashboard = () => {
         .from('anime')
         .select('*', { count: 'exact', head: true });
       
-      if (animeError) throw animeError;
+      if (animeError) {
+        console.error("Error fetching anime count:", animeError);
+        throw animeError;
+      }
       
       // Fetch total episodes count
       const { count: episodesCount, error: episodesError } = await supabase
         .from('episodes')
         .select('*', { count: 'exact', head: true });
       
-      if (episodesError) throw episodesError;
+      if (episodesError) {
+        console.error("Error fetching episodes count:", episodesError);
+        throw episodesError;
+      }
       
       // Fetch total users count
       const { count: usersCount, error: usersError } = await supabase
         .from('profiles')
         .select('*', { count: 'exact', head: true });
       
-      if (usersError) throw usersError;
+      if (usersError) {
+        console.error("Error fetching users count:", usersError);
+        throw usersError;
+      }
       
       // Fetch total watch history count as proxy for views
       const { count: viewsCount, error: viewsError } = await supabase
         .from('watch_history')
         .select('*', { count: 'exact', head: true });
       
-      if (viewsError) throw viewsError;
+      if (viewsError) {
+        console.error("Error fetching views count:", viewsError);
+        throw viewsError;
+      }
       
       // Fetch popular anime data
       const { data: animeData, error: popularError } = await supabase
@@ -103,19 +115,29 @@ const AdminDashboard = () => {
           ),
           count:id
         `)
-        .not('anime_id', 'is', null)
-        .order('count', { ascending: false })
-        .limit(5);
+        .not('anime_id', 'is', null);
       
-      if (popularError) throw popularError;
+      if (popularError) {
+        console.error("Error fetching popular anime:", popularError);
+        throw popularError;
+      }
       
-      // Format the data for the pie chart
-      const popularAnimeChart = animeData
-        .filter(item => item.anime && item.anime.title) // Filter out any null values
-        .map(item => ({
-          name: item.anime.title,
-          value: parseInt(item.count) || 1 // Ensure we have a number
-        }));
+      // Group episodes by anime and count them
+      const animeGroups = animeData.reduce((acc: Record<string, any>, item: any) => {
+        if (!item.anime || !item.anime.title) return acc;
+        
+        const animeTitle = item.anime.title;
+        if (!acc[animeTitle]) {
+          acc[animeTitle] = { name: animeTitle, value: 0 };
+        }
+        acc[animeTitle].value += 1;
+        return acc;
+      }, {});
+      
+      // Convert to array and sort by episode count
+      const popularAnimeChart = Object.values(animeGroups)
+        .sort((a: any, b: any) => b.value - a.value)
+        .slice(0, 5);
       
       // Update state with all fetched data
       setDashboardStats({
@@ -131,7 +153,17 @@ const AdminDashboard = () => {
       
     } catch (error) {
       console.error("Error fetching dashboard data:", error);
-      toast.error("Failed to load dashboard data");
+      toast.error("Failed to load dashboard data. Please check console for details.");
+      
+      // Set fallback data
+      setDashboardStats({
+        totalAnime: 0,
+        totalEpisodes: 0,
+        totalUsers: 0,
+        totalViews: 0
+      });
+      
+      setPopularAnimeData([{ name: 'No Data Available', value: 1 }]);
     } finally {
       setIsLoading(false);
     }
