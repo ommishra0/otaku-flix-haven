@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { TMDB_API_KEY, TMDB_BASE_URL } from "@/services/tmdbService";
 import { toast } from "sonner";
@@ -38,7 +37,6 @@ export interface TMDBAnimeDetail {
   status: string;
 }
 
-// Function to search anime by name
 export const searchTMDBAnime = async (query: string): Promise<TMDBAnimeDetail[]> => {
   try {
     const response = await fetch(
@@ -51,14 +49,12 @@ export const searchTMDBAnime = async (query: string): Promise<TMDBAnimeDetail[]>
     
     const data = await response.json();
     
-    // Filter animation genre (16) or anime-related keywords if needed
     const filteredResults = data.results.filter((item: any) => 
       (item.genre_ids && item.genre_ids.includes(16)) || 
       item.name?.toLowerCase().includes('anime') ||
       item.original_name?.toLowerCase().includes('anime')
     );
     
-    // Get detailed info for each anime
     const detailedResults = await Promise.all(
       filteredResults.map((result: any) => getTMDBAnimeDetail(result.id))
     );
@@ -71,7 +67,6 @@ export const searchTMDBAnime = async (query: string): Promise<TMDBAnimeDetail[]>
   }
 };
 
-// Function to get anime details by TMDB ID
 export const getTMDBAnimeDetail = async (tmdbId: number): Promise<TMDBAnimeDetail | null> => {
   try {
     const response = await fetch(
@@ -91,7 +86,6 @@ export const getTMDBAnimeDetail = async (tmdbId: number): Promise<TMDBAnimeDetai
   }
 };
 
-// Function to get season details by TMDB ID and season number
 export const getTMDBSeasonDetail = async (tmdbId: number, seasonNumber: number): Promise<{ episodes: TMDBEpisode[] } | null> => {
   try {
     const response = await fetch(
@@ -111,10 +105,8 @@ export const getTMDBSeasonDetail = async (tmdbId: number, seasonNumber: number):
   }
 };
 
-// Function to import an anime and its seasons to Supabase
 export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<string | null> => {
   try {
-    // Check if anime already exists
     const { data: existingAnime, error: checkError } = await supabase
       .from('anime')
       .select('id, title, tmdb_id')
@@ -125,12 +117,10 @@ export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<str
     
     let animeId: string;
     
-    // If anime exists, return its ID
     if (existingAnime && existingAnime.length > 0) {
       toast.info(`Anime "${anime.name}" already exists in the database.`);
       return existingAnime[0].id;
     } else {
-      // Insert new anime
       const { data: newAnime, error: insertError } = await supabase
         .from('anime')
         .insert({
@@ -161,10 +151,8 @@ export const importAnimeToDatabase = async (anime: TMDBAnimeDetail): Promise<str
   }
 };
 
-// Function to import a season to Supabase
 export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason): Promise<string | null> => {
   try {
-    // Check if season already exists
     const { data: existingSeason, error: checkError } = await supabase
       .from('seasons')
       .select('id')
@@ -182,7 +170,6 @@ export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason
       return existingSeason[0].id;
     }
     
-    // Insert new season
     const { data: newSeason, error: insertError } = await supabase
       .from('seasons')
       .insert({
@@ -214,7 +201,6 @@ export const importSeasonToDatabase = async (animeId: string, season: TMDBSeason
   }
 };
 
-// Function to import episodes for a season
 export const importEpisodesToDatabase = async (
   animeId: string, 
   seasonId: string, 
@@ -225,7 +211,6 @@ export const importEpisodesToDatabase = async (
   
   for (const episode of episodes) {
     try {
-      // Check if episode already exists
       const { data: existingEpisode, error: checkError } = await supabase
         .from('episodes')
         .select('id')
@@ -242,7 +227,6 @@ export const importEpisodesToDatabase = async (
         continue;
       }
       
-      // Insert new episode
       const { error: insertError } = await supabase
         .from('episodes')
         .insert({
@@ -256,7 +240,6 @@ export const importEpisodesToDatabase = async (
           air_date: episode.air_date,
           tmdb_id: episode.id,
           import_status: 'imported',
-          // Generate a placeholder video URL (can be edited later)
           video_url: null,
           embed_code: null
         });
@@ -276,19 +259,15 @@ export const importEpisodesToDatabase = async (
   return successCount;
 };
 
-// Function to bulk import all seasons and episodes for an anime
 export const bulkImportAnimeWithSeasonsAndEpisodes = async (anime: TMDBAnimeDetail): Promise<boolean> => {
   try {
-    // First import the anime
     const animeId = await importAnimeToDatabase(anime);
     if (!animeId) return false;
     
-    // Import each season and its episodes
     let totalSeasons = 0;
     let totalEpisodes = 0;
     
     for (const season of anime.seasons) {
-      // Skip season 0 (usually specials)
       if (season.season_number === 0) continue;
       
       const seasonId = await importSeasonToDatabase(animeId, season);
@@ -296,7 +275,6 @@ export const bulkImportAnimeWithSeasonsAndEpisodes = async (anime: TMDBAnimeDeta
       
       totalSeasons++;
       
-      // Get and import episodes for this season
       const seasonDetail = await getTMDBSeasonDetail(anime.id, season.season_number);
       if (!seasonDetail) continue;
       
@@ -319,22 +297,18 @@ export const bulkImportAnimeWithSeasonsAndEpisodes = async (anime: TMDBAnimeDeta
   }
 };
 
-// Function to import specific seasons for an anime
 export const importSpecificSeasonsForAnime = async (
   anime: TMDBAnimeDetail, 
   seasonNumbers: number[]
 ): Promise<boolean> => {
   try {
-    // First import the anime
     const animeId = await importAnimeToDatabase(anime);
     if (!animeId) return false;
     
-    // Import only the selected seasons
     let totalSeasons = 0;
     let totalEpisodes = 0;
     
     for (const seasonNumber of seasonNumbers) {
-      // Find the season in anime.seasons
       const season = anime.seasons.find(s => s.season_number === seasonNumber);
       if (!season) continue;
       
@@ -343,7 +317,6 @@ export const importSpecificSeasonsForAnime = async (
       
       totalSeasons++;
       
-      // Get and import episodes for this season
       const seasonDetail = await getTMDBSeasonDetail(anime.id, seasonNumber);
       if (!seasonDetail) continue;
       
