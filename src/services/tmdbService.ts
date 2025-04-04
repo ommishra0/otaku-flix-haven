@@ -1,9 +1,8 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 // TMDB API configuration
-export const TMDB_API_KEY = 'd1aef4ce97f1eb865be6aabf156b6775';
+export const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || '';
 export const TMDB_BASE_URL = 'https://api.themoviedb.org/3';
 export const ANIME_GENRE_ID = 16; // Animation genre ID in TMDB
 
@@ -22,6 +21,11 @@ export interface TMDBAnime {
 
 // Function to get trending anime from TMDB
 export const getTrendingAnime = async (): Promise<TMDBAnime[]> => {
+  if (!TMDB_API_KEY) {
+    toast.error("TMDB API key is missing. Please configure the environment variable.");
+    return [];
+  }
+  
   try {
     const response = await fetch(
       `${TMDB_BASE_URL}/discover/tv?api_key=${TMDB_API_KEY}&with_genres=${ANIME_GENRE_ID}&sort_by=popularity.desc&page=1`
@@ -45,7 +49,6 @@ export const getTrendingAnime = async (): Promise<TMDBAnime[]> => {
       release_date: item.first_air_date,
       vote_average: item.vote_average,
       popularity: item.popularity,
-      // Determine if it's a movie or TV series based on the TMDB data
       type: item.media_type === 'movie' ? 'Movie' : 'TV Series'
     }));
   } catch (error) {
@@ -89,7 +92,6 @@ export const searchAnime = async (query: string): Promise<TMDBAnime[]> => {
         release_date: item.first_air_date,
         vote_average: item.vote_average,
         popularity: item.popularity,
-        // Set type based on what we know
         type: 'TV Series' // Default to TV Series for search results
       }));
   } catch (error) {
