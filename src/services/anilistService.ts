@@ -1,7 +1,25 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { Anime } from "./animeService";
+
+// Define Anime type here instead of importing from animeService to avoid circular dependency
+export interface AnimeFromDB {
+  id: string;
+  title: string;
+  description?: string;
+  image_url?: string;
+  banner_image_url?: string;
+  rating?: number;
+  release_year?: number;
+  is_trending?: boolean;
+  is_popular?: boolean;
+  is_custom?: boolean;
+  type?: string;
+  status?: string;
+  anilist_id?: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
 // AniList API configuration
 export const ANILIST_API_URL = 'https://graphql.anilist.co';
@@ -401,7 +419,7 @@ export const bulkImportTrendingAniListAnime = async (): Promise<number> => {
 };
 
 // Function to fetch anime by AniList ID from database
-export const fetchAnimeByAniListId = async (anilistId: number): Promise<Anime | null> => {
+export const fetchAnimeByAniListId = async (anilistId: number): Promise<AnimeFromDB | null> => {
   try {
     const { data, error } = await supabase
       .from('anime')
