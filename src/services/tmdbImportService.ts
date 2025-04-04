@@ -2,9 +2,9 @@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-// Import constants from tmdbService or define them here if they're missing
+// Define constants for TMDB API
 const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-const TMDB_API_KEY = process.env.TMDB_API_KEY || ""; // This will be replaced with the actual key from environment
+const TMDB_API_KEY = import.meta.env.VITE_TMDB_API_KEY || ""; // Using Vite's environment variable approach
 
 export interface TMDBSeason {
   id: number;
