@@ -348,7 +348,7 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       return [];
     }
 
-    // Transform AniList data to match our internal format
+    // Transform AniList data to match our internal format - using 'any' type to avoid deep nesting issues
     return data.Page.media.map((item: any) => ({
       id: item.id,
       title: item.title.english || item.title.romaji,
