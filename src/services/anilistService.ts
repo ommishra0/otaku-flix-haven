@@ -53,7 +53,7 @@ export interface AniListAnime {
   genres: string[];
 }
 
-// Simplified media type to match what's being used in AnimeImport.tsx
+// Simplified media type with explicit UI-related properties
 export interface AniListMedia {
   id: number;
   title: {
@@ -76,7 +76,7 @@ export interface AniListMedia {
   episodes?: number;
   averageScore?: number;
   popularity?: number;
-  // Additional properties for UI rendering in AnimeImport.tsx
+  // Explicitly add UI-specific properties
   poster_path?: string;
   vote_average?: number;
   release_date?: string;
@@ -150,26 +150,36 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       return [];
     }
 
-    // Transform AniList data to match the UI expectations
-    return data.Page.media.map((item: any) => {
-      const titleString = item.title.english || item.title.romaji || '';
-      const voteAverage = (item.averageScore || 0) / 10; // Convert to 0-10 scale
+    // Transform AniList data with proper type safety
+    return data.Page.media.map((item: any): AniListMedia => {
+      const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
       
-      const releaseDate = item.startDate.year 
+      const releaseDate = item.startDate && item.startDate.year 
         ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
         : '';
 
       return {
         id: item.id,
-        title: item.title,
-        poster_path: item.coverImage.large || '',
-        coverImage: item.coverImage,
-        bannerImage: item.bannerImage,
+        title: {
+          english: item.title.english || '',
+          romaji: item.title.romaji || '',
+          native: item.title.native || '',
+        },
+        coverImage: {
+          large: item.coverImage?.large || '',
+          medium: item.coverImage?.medium || '',
+        },
+        poster_path: item.coverImage?.large || '',
+        bannerImage: item.bannerImage || '',
         description: item.description || '',
-        format: item.format,
-        startDate: item.startDate,
+        format: item.format || '',
+        startDate: {
+          year: item.startDate?.year,
+          month: item.startDate?.month,
+          day: item.startDate?.day,
+        },
         episodes: item.episodes || 0,
-        averageScore: item.averageScore,
+        averageScore: item.averageScore || 0,
         popularity: item.popularity || 0,
         vote_average: voteAverage,
         release_date: releaseDate
@@ -263,12 +273,12 @@ export const importAniListAnimeToDatabase = async (anilistAnime: AniListAnime): 
     }
     
     if (existingAnime && existingAnime.length > 0) {
-      toast.error(`"${existingAnime[0].title}" is already in the database.`);
+      console.log(`"${existingAnime[0].title}" is already in the database.`);
       return existingAnime[0].id;
     }
     
     // Ensure rating is within a valid range
-    let normalizedRating = anilistAnime.averageScore / 10; // Convert to 0-10 scale
+    let normalizedRating = anilistAnime.averageScore ? anilistAnime.averageScore / 10 : 0; // Convert to 0-10 scale
     if (normalizedRating < 0) normalizedRating = 0;
     if (normalizedRating > 10) normalizedRating = 10;
     
@@ -278,16 +288,23 @@ export const importAniListAnimeToDatabase = async (anilistAnime: AniListAnime): 
     // Determine anime type based on format
     const animeType = anilistAnime.format === 'MOVIE' ? 'Movie' : 'TV Series';
     
+    // Handle potentially missing data
+    const title = anilistAnime.title.english || anilistAnime.title.romaji || 'Unknown Anime';
+    const description = anilistAnime.description || '';
+    const imageUrl = anilistAnime.coverImage?.large || '';
+    const bannerImageUrl = anilistAnime.bannerImage || '';
+    const releaseYear = anilistAnime.startDate?.year || null;
+    
     // Insert anime into the database
     const { data, error } = await supabase
       .from('anime')
       .insert({
-        title: anilistAnime.title.english || anilistAnime.title.romaji,
-        description: anilistAnime.description,
-        image_url: anilistAnime.coverImage.large,
-        banner_image_url: anilistAnime.bannerImage,
+        title: title,
+        description: description,
+        image_url: imageUrl,
+        banner_image_url: bannerImageUrl,
         rating: normalizedRating,
-        release_year: anilistAnime.startDate.year,
+        release_year: releaseYear,
         is_trending: false,
         is_popular: anilistAnime.popularity > 5000, // Arbitrary threshold
         is_custom: false,
@@ -300,17 +317,16 @@ export const importAniListAnimeToDatabase = async (anilistAnime: AniListAnime): 
     
     if (error) {
       console.error("Error importing anime to database:", error);
-      toast.error(`Failed to import anime: ${error.message}`);
       throw error;
     }
     
-    toast.success(`Added "${anilistAnime.title.english || anilistAnime.title.romaji}" to the database.`);
-    console.log("Successfully imported anime:", anilistAnime.title.english || anilistAnime.title.romaji);
+    toast.success(`Added "${title}" to the database.`);
+    console.log("Successfully imported anime:", title);
     
     return data.id;
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error importing anime to database:", error);
-    toast.error("Could not import anime to database");
+    toast.error(`Import failed: ${error.message || 'Unknown error'}`);
     return null;
   }
 };
@@ -364,26 +380,36 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       return [];
     }
 
-    // Transform AniList data with types that match UI expectations
-    return data.Page.media.map((item: any) => {
-      const titleString = item.title.english || item.title.romaji || '';
-      const voteAverage = (item.averageScore || 0) / 10; // Convert to 0-10 scale
+    // Transform AniList data with proper type safety
+    return data.Page.media.map((item: any): AniListMedia => {
+      const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
       
-      const releaseDate = item.startDate.year 
+      const releaseDate = item.startDate && item.startDate.year 
         ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
         : '';
 
       return {
         id: item.id,
-        title: item.title,
-        poster_path: item.coverImage.large || '',
-        coverImage: item.coverImage,
-        bannerImage: item.bannerImage,
+        title: {
+          english: item.title.english || '',
+          romaji: item.title.romaji || '',
+          native: item.title.native || '',
+        },
+        coverImage: {
+          large: item.coverImage?.large || '',
+          medium: item.coverImage?.medium || '',
+        },
+        poster_path: item.coverImage?.large || '',
+        bannerImage: item.bannerImage || '',
         description: item.description || '',
-        format: item.format,
-        startDate: item.startDate,
+        format: item.format || '',
+        startDate: {
+          year: item.startDate?.year,
+          month: item.startDate?.month,
+          day: item.startDate?.day,
+        },
         episodes: item.episodes || 0,
-        averageScore: item.averageScore,
+        averageScore: item.averageScore || 0,
         popularity: item.popularity || 0,
         vote_average: voteAverage,
         release_date: releaseDate
@@ -409,23 +435,34 @@ export const bulkImportTrendingAniListAnime = async (): Promise<number> => {
     let importCount = 0;
     let failures = 0;
     
+    // Start with a toast notification to show progress
+    const loadingToast = toast.loading(`Importing ${trendingAnime.length} anime from AniList...`);
+    
     for (const animeMedia of trendingAnime) {
-      const animeDetails = await getAniListAnimeDetails(animeMedia.id);
+      try {
+        const animeDetails = await getAniListAnimeDetails(animeMedia.id);
       
-      if (!animeDetails) {
-        console.error(`Could not fetch details for anime ID: ${animeMedia.id}`);
-        failures++;
-        continue;
-      }
-      
-      const animeId = await importAniListAnimeToDatabase(animeDetails);
-      
-      if (animeId) {
-        importCount++;
-      } else {
+        if (!animeDetails) {
+          console.error(`Could not fetch details for anime ID: ${animeMedia.id}`);
+          failures++;
+          continue;
+        }
+        
+        const animeId = await importAniListAnimeToDatabase(animeDetails);
+        
+        if (animeId) {
+          importCount++;
+        } else {
+          failures++;
+        }
+      } catch (err) {
+        console.error(`Error importing anime ID ${animeMedia.id}:`, err);
         failures++;
       }
     }
+    
+    // Dismiss the loading toast
+    toast.dismiss(loadingToast);
     
     if (importCount > 0) {
       toast.success(`Successfully imported ${importCount} trending anime from AniList!`);
