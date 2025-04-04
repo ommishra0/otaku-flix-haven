@@ -9,7 +9,8 @@ import {
   LayoutGrid, 
   ListFilter, 
   LogOut, 
-  Settings 
+  Settings, 
+  Import
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -116,6 +117,15 @@ const AdminLayout = ({ children, title }: AdminLayoutProps) => {
                       <Link to="/admin/categories" className="flex items-center gap-3">
                         <ListFilter size={20} />
                         <span>Categories</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                  
+                  <SidebarMenuItem>
+                    <SidebarMenuButton asChild tooltip="Import" isActive={window.location.pathname === "/admin/import"}>
+                      <Link to="/admin/import" className="flex items-center gap-3">
+                        <Import size={20} />
+                        <span>Import Anime</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

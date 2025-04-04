@@ -214,7 +214,7 @@ export const importAniListAnimeToDatabase = async (anilistAnime: AniListAnime): 
     const { data: existingAnime, error: checkError } = await supabase
       .from('anime')
       .select('id, title')
-      .or(`title.eq.${anilistAnime.title.english},title.eq.${anilistAnime.title.romaji}`)
+      .eq('anilist_id', anilistAnime.id)
       .limit(1);
     
     if (checkError) {
@@ -400,7 +400,7 @@ export const bulkImportTrendingAniListAnime = async (): Promise<number> => {
 };
 
 // Function to fetch anime by AniList ID from database
-export const fetchAnimeByAniList = async (anilistId: number) => {
+export const fetchAnimeByAniListId = async (anilistId: number) => {
   try {
     const { data, error } = await supabase
       .from('anime')
