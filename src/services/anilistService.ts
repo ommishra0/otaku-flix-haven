@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -52,7 +53,7 @@ export interface AniListAnime {
   genres: string[];
 }
 
-// Simplify media type to reduce type complexity
+// Simplified media type to match what's being used in AnimeImport.tsx
 export interface AniListMedia {
   id: number;
   title: {
@@ -75,6 +76,10 @@ export interface AniListMedia {
   episodes?: number;
   averageScore?: number;
   popularity?: number;
+  // Additional properties for UI rendering in AnimeImport.tsx
+  poster_path?: string;
+  vote_average?: number;
+  release_date?: string;
 }
 
 // Mapping AniList status to our database status
@@ -145,22 +150,31 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       return [];
     }
 
-    // Transform AniList data with explicit type conversion
-    return data.Page.media.map((item: AniListMedia) => ({
-      id: item.id,
-      title: item.title.english || item.title.romaji || '',
-      original_title: item.title.native || '',
-      poster_path: item.coverImage.large || '',
-      backdrop_path: item.bannerImage || '',
-      overview: item.description || '',
-      release_date: item.startDate.year 
+    // Transform AniList data to match the UI expectations
+    return data.Page.media.map((item: any) => {
+      const titleString = item.title.english || item.title.romaji || '';
+      const voteAverage = (item.averageScore || 0) / 10; // Convert to 0-10 scale
+      
+      const releaseDate = item.startDate.year 
         ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
-        : null,
-      vote_average: (item.averageScore || 0) / 10,
-      popularity: item.popularity || 0,
-      type: item.format === 'MOVIE' ? 'Movie' : 'TV Series',
-      episodes: item.episodes || 0
-    }));
+        : '';
+
+      return {
+        id: item.id,
+        title: item.title,
+        poster_path: item.coverImage.large || '',
+        coverImage: item.coverImage,
+        bannerImage: item.bannerImage,
+        description: item.description || '',
+        format: item.format,
+        startDate: item.startDate,
+        episodes: item.episodes || 0,
+        averageScore: item.averageScore,
+        popularity: item.popularity || 0,
+        vote_average: voteAverage,
+        release_date: releaseDate
+      };
+    });
   } catch (error) {
     console.error("Error searching anime on AniList:", error);
     toast.error("Failed to search anime on AniList");
@@ -350,22 +364,31 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       return [];
     }
 
-    // Transform AniList data with explicit type conversion
-    return data.Page.media.map((item: AniListMedia) => ({
-      id: item.id,
-      title: item.title.english || item.title.romaji || '',
-      original_title: item.title.native || '',
-      poster_path: item.coverImage.large || '',
-      backdrop_path: item.bannerImage || '',
-      overview: item.description || '',
-      release_date: item.startDate.year 
+    // Transform AniList data with types that match UI expectations
+    return data.Page.media.map((item: any) => {
+      const titleString = item.title.english || item.title.romaji || '';
+      const voteAverage = (item.averageScore || 0) / 10; // Convert to 0-10 scale
+      
+      const releaseDate = item.startDate.year 
         ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
-        : null,
-      vote_average: (item.averageScore || 0) / 10,
-      popularity: item.popularity || 0,
-      type: item.format === 'MOVIE' ? 'Movie' : 'TV Series',
-      episodes: item.episodes || 0
-    }));
+        : '';
+
+      return {
+        id: item.id,
+        title: item.title,
+        poster_path: item.coverImage.large || '',
+        coverImage: item.coverImage,
+        bannerImage: item.bannerImage,
+        description: item.description || '',
+        format: item.format,
+        startDate: item.startDate,
+        episodes: item.episodes || 0,
+        averageScore: item.averageScore,
+        popularity: item.popularity || 0,
+        vote_average: voteAverage,
+        release_date: releaseDate
+      };
+    });
   } catch (error) {
     console.error("Error fetching trending anime from AniList:", error);
     toast.error("Failed to fetch trending anime from AniList");

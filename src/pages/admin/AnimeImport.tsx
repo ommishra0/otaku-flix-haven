@@ -303,6 +303,14 @@ const AnimeImport = () => {
     }
   };
   
+  const getDisplayTitle = (anime: AniListMedia): string => {
+    return anime.title?.english || anime.title?.romaji || 'Unknown Title';
+  };
+  
+  const getReleaseYear = (anime: AniListMedia): string => {
+    return anime.startDate?.year ? anime.startDate.year.toString() : 'Unknown';
+  };
+
   return (
     <AdminLayout title="Anime Import">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -488,7 +496,7 @@ const AnimeImport = () => {
                               {anime.poster_path ? (
                                 <img 
                                   src={anime.poster_path}
-                                  alt={anime.title}
+                                  alt={getDisplayTitle(anime)}
                                   className="w-full h-full object-cover"
                                 />
                               ) : (
@@ -499,9 +507,9 @@ const AnimeImport = () => {
                             </div>
                             <div className="flex flex-col justify-between flex-1">
                               <div>
-                                <h4 className="font-medium text-white">{anime.title}</h4>
+                                <h4 className="font-medium text-white">{getDisplayTitle(anime)}</h4>
                                 <p className="text-xs text-gray-400 mt-1">
-                                  {anime.release_date ? `Released: ${new Date(anime.release_date).getFullYear()}` : 'Release date unknown'}
+                                  {getReleaseYear(anime) !== 'Unknown' ? `Released: ${getReleaseYear(anime)}` : 'Release date unknown'}
                                 </p>
                               </div>
                               <div className="flex flex-wrap gap-1 mt-2">
@@ -514,7 +522,7 @@ const AnimeImport = () => {
                                   </Badge>
                                 )}
                                 <Badge variant="secondary" className="text-xs">
-                                  Rating: {anime.vote_average.toFixed(1)}
+                                  Rating: {anime.vote_average?.toFixed(1) || 'N/A'}
                                 </Badge>
                               </div>
                             </div>
