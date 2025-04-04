@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -53,18 +52,29 @@ export interface AniListAnime {
   genres: string[];
 }
 
+// Simplify media type to reduce type complexity
 export interface AniListMedia {
   id: number;
-  title: string;
-  original_title: string;
-  poster_path: string;
-  backdrop_path: string;
-  overview: string;
-  release_date: string;
-  vote_average: number;
-  popularity: number;
-  type: string;
-  episodes: number;
+  title: {
+    english?: string;
+    romaji?: string;
+    native?: string;
+  };
+  coverImage: {
+    large?: string;
+    medium?: string;
+  };
+  bannerImage?: string;
+  description?: string;
+  format?: string;
+  startDate: {
+    year?: number;
+    month?: number;
+    day?: number;
+  };
+  episodes?: number;
+  averageScore?: number;
+  popularity?: number;
 }
 
 // Mapping AniList status to our database status
@@ -111,18 +121,13 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
                 bannerImage
                 format
                 episodes
-                duration
-                status
-                season
-                seasonYear
-                averageScore
-                popularity
                 startDate {
                   year
                   month
                   day
                 }
-                genres
+                averageScore
+                popularity
               }
             }
           }
@@ -140,19 +145,21 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       return [];
     }
 
-    // Transform AniList data to match our internal format
-    return data.Page.media.map((item: any) => ({
+    // Transform AniList data with explicit type conversion
+    return data.Page.media.map((item: AniListMedia) => ({
       id: item.id,
-      title: item.title.english || item.title.romaji,
-      original_title: item.title.native,
-      poster_path: item.coverImage.large,
-      backdrop_path: item.bannerImage,
-      overview: item.description,
-      release_date: item.startDate.year ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` : null,
-      vote_average: item.averageScore / 10, // Convert to same scale as TMDB (0-10)
-      popularity: item.popularity,
+      title: item.title.english || item.title.romaji || '',
+      original_title: item.title.native || '',
+      poster_path: item.coverImage.large || '',
+      backdrop_path: item.bannerImage || '',
+      overview: item.description || '',
+      release_date: item.startDate.year 
+        ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
+        : null,
+      vote_average: (item.averageScore || 0) / 10,
+      popularity: item.popularity || 0,
       type: item.format === 'MOVIE' ? 'Movie' : 'TV Series',
-      episodes: item.episodes
+      episodes: item.episodes || 0
     }));
   } catch (error) {
     console.error("Error searching anime on AniList:", error);
@@ -294,7 +301,7 @@ export const importAniListAnimeToDatabase = async (anilistAnime: AniListAnime): 
   }
 };
 
-// Function to fetch trending anime from AniList
+// Similar changes for getTrendingAniListAnime function
 export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
   try {
     const response = await fetch(ANILIST_API_URL, {
@@ -322,18 +329,13 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
                 bannerImage
                 format
                 episodes
-                duration
-                status
-                season
-                seasonYear
-                averageScore
-                popularity
                 startDate {
                   year
                   month
                   day
                 }
-                genres
+                averageScore
+                popularity
               }
             }
           }
@@ -348,19 +350,21 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       return [];
     }
 
-    // Transform AniList data to match our internal format - using 'any' type to avoid deep nesting issues
-    return data.Page.media.map((item: any) => ({
+    // Transform AniList data with explicit type conversion
+    return data.Page.media.map((item: AniListMedia) => ({
       id: item.id,
-      title: item.title.english || item.title.romaji,
-      original_title: item.title.native,
-      poster_path: item.coverImage.large,
-      backdrop_path: item.bannerImage,
-      overview: item.description,
-      release_date: item.startDate.year ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` : null,
-      vote_average: item.averageScore / 10,
-      popularity: item.popularity,
+      title: item.title.english || item.title.romaji || '',
+      original_title: item.title.native || '',
+      poster_path: item.coverImage.large || '',
+      backdrop_path: item.bannerImage || '',
+      overview: item.description || '',
+      release_date: item.startDate.year 
+        ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
+        : null,
+      vote_average: (item.averageScore || 0) / 10,
+      popularity: item.popularity || 0,
       type: item.format === 'MOVIE' ? 'Movie' : 'TV Series',
-      episodes: item.episodes
+      episodes: item.episodes || 0
     }));
   } catch (error) {
     console.error("Error fetching trending anime from AniList:", error);
