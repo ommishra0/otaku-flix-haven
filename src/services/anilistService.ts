@@ -1,6 +1,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Anime } from "./animeService";
 
 // AniList API configuration
 export const ANILIST_API_URL = 'https://graphql.anilist.co';
@@ -400,7 +401,7 @@ export const bulkImportTrendingAniListAnime = async (): Promise<number> => {
 };
 
 // Function to fetch anime by AniList ID from database
-export const fetchAnimeByAniListId = async (anilistId: number) => {
+export const fetchAnimeByAniListId = async (anilistId: number): Promise<Anime | null> => {
   try {
     const { data, error } = await supabase
       .from('anime')
