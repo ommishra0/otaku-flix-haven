@@ -141,7 +141,7 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
     }
 
     // Transform AniList data to match our internal format
-    return data.Page.media.map((item: AniListAnime) => ({
+    return data.Page.media.map((item: any) => ({
       id: item.id,
       title: item.title.english || item.title.romaji,
       original_title: item.title.native,
@@ -349,7 +349,7 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
     }
 
     // Transform AniList data to match our internal format
-    return data.Page.media.map((item: AniListAnime) => ({
+    return data.Page.media.map((item: any) => ({
       id: item.id,
       title: item.title.english || item.title.romaji,
       original_title: item.title.native,
