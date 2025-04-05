@@ -53,7 +53,7 @@ export interface AniListAnime {
   genres: string[];
 }
 
-// Simplified media type with explicit UI-related properties
+// Using a simpler, flattened structure for the media type
 export interface AniListMedia {
   id: number;
   title: {
@@ -76,7 +76,7 @@ export interface AniListMedia {
   episodes?: number;
   averageScore?: number;
   popularity?: number;
-  // Explicitly add UI-specific properties
+  // These are the UI-specific properties
   poster_path?: string;
   vote_average?: number;
   release_date?: string;
@@ -150,40 +150,50 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       return [];
     }
 
-    // Transform AniList data with proper type safety
+    // Transform AniList data with explicit types
     return data.Page.media.map((item: any): AniListMedia => {
+      // Using optional chaining and nullish coalescing for safety
+      const title = {
+        english: item.title?.english || '',
+        romaji: item.title?.romaji || '',
+        native: item.title?.native || '',
+      };
+      
+      const coverImage = {
+        large: item.coverImage?.large || '',
+        medium: item.coverImage?.medium || '',
+      };
+      
+      const startDate = {
+        year: item.startDate?.year || undefined,
+        month: item.startDate?.month || undefined,
+        day: item.startDate?.day || undefined,
+      };
+
       const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
       
-      const releaseDate = item.startDate && item.startDate.year 
-        ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
+      const releaseDate = startDate.year 
+        ? `${startDate.year}-${startDate.month || 1}-${startDate.day || 1}` 
         : '';
 
-      return {
-        id: item.id,
-        title: {
-          english: item.title.english || '',
-          romaji: item.title.romaji || '',
-          native: item.title.native || '',
-        },
-        coverImage: {
-          large: item.coverImage?.large || '',
-          medium: item.coverImage?.medium || '',
-        },
-        poster_path: item.coverImage?.large || '',
+      // Creating a new object with explicit properties to avoid deep type inference
+      const aniListMedia: AniListMedia = {
+        id: item.id || 0,
+        title,
+        coverImage,
+        poster_path: coverImage.large || '',
         bannerImage: item.bannerImage || '',
         description: item.description || '',
         format: item.format || '',
-        startDate: {
-          year: item.startDate?.year,
-          month: item.startDate?.month,
-          day: item.startDate?.day,
-        },
+        startDate,
         episodes: item.episodes || 0,
         averageScore: item.averageScore || 0,
         popularity: item.popularity || 0,
         vote_average: voteAverage,
         release_date: releaseDate
       };
+
+      return aniListMedia;
     });
   } catch (error) {
     console.error("Error searching anime on AniList:", error);
@@ -331,7 +341,7 @@ export const importAniListAnimeToDatabase = async (anilistAnime: AniListAnime): 
   }
 };
 
-// Similar changes for getTrendingAniListAnime function
+// Function to get trending anime from AniList
 export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
   try {
     const response = await fetch(ANILIST_API_URL, {
@@ -380,40 +390,50 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       return [];
     }
 
-    // Transform AniList data with proper type safety
+    // Transform AniList data with explicit types to avoid deep inference
     return data.Page.media.map((item: any): AniListMedia => {
+      // Using explicit type construction to avoid type inference issues
+      const title = {
+        english: item.title?.english || '',
+        romaji: item.title?.romaji || '',
+        native: item.title?.native || '',
+      };
+      
+      const coverImage = {
+        large: item.coverImage?.large || '',
+        medium: item.coverImage?.medium || '',
+      };
+      
+      const startDate = {
+        year: item.startDate?.year || undefined,
+        month: item.startDate?.month || undefined,
+        day: item.startDate?.day || undefined,
+      };
+
       const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
       
-      const releaseDate = item.startDate && item.startDate.year 
-        ? `${item.startDate.year}-${item.startDate.month || 1}-${item.startDate.day || 1}` 
+      const releaseDate = startDate.year 
+        ? `${startDate.year}-${startDate.month || 1}-${startDate.day || 1}` 
         : '';
 
-      return {
-        id: item.id,
-        title: {
-          english: item.title.english || '',
-          romaji: item.title.romaji || '',
-          native: item.title.native || '',
-        },
-        coverImage: {
-          large: item.coverImage?.large || '',
-          medium: item.coverImage?.medium || '',
-        },
-        poster_path: item.coverImage?.large || '',
+      // Create a new object with explicit properties
+      const media: AniListMedia = {
+        id: item.id || 0,
+        title,
+        coverImage,
+        poster_path: coverImage.large || '',
         bannerImage: item.bannerImage || '',
         description: item.description || '',
         format: item.format || '',
-        startDate: {
-          year: item.startDate?.year,
-          month: item.startDate?.month,
-          day: item.startDate?.day,
-        },
+        startDate,
         episodes: item.episodes || 0,
         averageScore: item.averageScore || 0,
         popularity: item.popularity || 0,
         vote_average: voteAverage,
         release_date: releaseDate
       };
+
+      return media;
     });
   } catch (error) {
     console.error("Error fetching trending anime from AniList:", error);
