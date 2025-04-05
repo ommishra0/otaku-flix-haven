@@ -32,6 +32,7 @@ export type Database = {
       }
       anime: {
         Row: {
+          anilist_id: number | null
           "anime.anilist_id": number | null
           banner_image_url: string | null
           created_at: string | null
@@ -52,6 +53,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          anilist_id?: number | null
           "anime.anilist_id"?: number | null
           banner_image_url?: string | null
           created_at?: string | null
@@ -72,6 +74,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          anilist_id?: number | null
           "anime.anilist_id"?: number | null
           banner_image_url?: string | null
           created_at?: string | null

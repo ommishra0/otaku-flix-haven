@@ -39,7 +39,7 @@ const Index = () => {
               id: anime.id,
               title: anime.title.english || anime.title.romaji || 'Unknown',
               image: anime.coverImage.large || anime.coverImage.medium || '/placeholder.svg',
-              rating: anime.vote_average || undefined,
+              rating: anime.averageScore ? anime.averageScore / 20 : undefined,
               type: anime.format || undefined,
               year: anime.startDate.year || undefined
             }));
@@ -55,7 +55,7 @@ const Index = () => {
                 description: anime.description || '',
                 image_url: anime.coverImage.large || anime.coverImage.medium || '/placeholder.svg',
                 banner_image_url: anime.bannerImage || anime.coverImage.large || '',
-                rating: anime.vote_average || 0,
+                rating: anime.averageScore ? anime.averageScore / 20 : 0,
               } as Anime));
               
               setFeaturedAnime(featuredFromAniList);
