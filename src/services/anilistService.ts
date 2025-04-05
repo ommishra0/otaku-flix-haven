@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -294,18 +295,31 @@ export const getAniListAnimeDetails = async (anilistId: number): Promise<AniList
     const media = data.Media;
     
     // Create a properly typed AniListAnime object with null safety
+    const titleObj = {
+      romaji: media.title?.romaji || '',
+      english: media.title?.english || null,
+      native: media.title?.native || null
+    };
+    
+    const coverImageObj = {
+      large: media.coverImage?.large || null,
+      medium: media.coverImage?.medium || null
+    };
+    
+    const startDateObj = {
+      year: media.startDate?.year || null,
+      month: media.startDate?.month || null,
+      day: media.startDate?.day || null
+    };
+    
+    const genres = Array.isArray(media.genres) ? media.genres : [];
+    
+    // Use a simplified construction to avoid excessive type inference
     const anime: AniListAnime = {
       id: media.id,
-      title: {
-        romaji: media.title?.romaji || '',
-        english: media.title?.english || null,
-        native: media.title?.native || null
-      },
+      title: titleObj,
       description: media.description || null,
-      coverImage: {
-        large: media.coverImage?.large || null,
-        medium: media.coverImage?.medium || null
-      },
+      coverImage: coverImageObj,
       bannerImage: media.bannerImage || null,
       format: media.format || null,
       episodes: media.episodes || null,
@@ -315,12 +329,8 @@ export const getAniListAnimeDetails = async (anilistId: number): Promise<AniList
       seasonYear: media.seasonYear || null,
       averageScore: media.averageScore || null,
       popularity: media.popularity || null,
-      startDate: {
-        year: media.startDate?.year || null,
-        month: media.startDate?.month || null,
-        day: media.startDate?.day || null
-      },
-      genres: Array.isArray(media.genres) ? media.genres : []
+      startDate: startDateObj,
+      genres: genres
     };
 
     return anime;
