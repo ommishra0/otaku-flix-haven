@@ -28,27 +28,27 @@ export interface AniListAnime {
   id: number;
   title: {
     romaji: string;
-    english: string;
-    native: string;
+    english: string | null;
+    native: string | null;
   };
-  description: string;
+  description: string | null;
   coverImage: {
-    large: string;
-    medium: string;
+    large: string | null;
+    medium: string | null;
   };
-  bannerImage: string;
-  format: string; // TV, MOVIE, OVA, etc.
-  episodes: number;
-  duration: number;
+  bannerImage: string | null;
+  format: string | null; // TV, MOVIE, OVA, etc.
+  episodes: number | null;
+  duration: number | null;
   status: string;
-  season: string;
-  seasonYear: number;
-  averageScore: number;
-  popularity: number;
+  season: string | null;
+  seasonYear: number | null;
+  averageScore: number | null;
+  popularity: number | null;
   startDate: {
-    year: number;
-    month: number;
-    day: number;
+    year: number | null;
+    month: number | null;
+    day: number | null;
   };
   genres: string[];
 }
@@ -185,7 +185,7 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       return [];
     }
 
-    // Transform AniList data with explicit types and null safety
+    // Transform AniList data with explicit types and null safety - using a for loop instead of map
     const results: AniListMedia[] = [];
     
     for (const item of data.Page.media) {
@@ -196,13 +196,13 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       const coverImage = getSafeCoverImage(item.coverImage);
       const startDate = getSafeStartDate(item.startDate);
       
-      const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
+      const voteAverage = item.averageScore ? (item.averageScore / 10) : null;
       
       let releaseDate: string | null = null;
       if (startDate.year) {
         const month = startDate.month || 1;
         const day = startDate.day || 1;
-        releaseDate = `${startDate.year}-${month}-${day}`;
+        releaseDate = `${startDate.year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
       }
 
       // Create a properly typed AniListMedia object
@@ -292,7 +292,39 @@ export const getAniListAnimeDetails = async (anilistId: number): Promise<AniList
       return null;
     }
 
-    return data.Media;
+    const media = data.Media;
+    
+    // Create a properly typed AniListAnime object with null safety
+    const anime: AniListAnime = {
+      id: media.id,
+      title: {
+        romaji: media.title.romaji || '',
+        english: media.title.english || null,
+        native: media.title.native || null
+      },
+      description: media.description || null,
+      coverImage: {
+        large: media.coverImage?.large || null,
+        medium: media.coverImage?.medium || null
+      },
+      bannerImage: media.bannerImage || null,
+      format: media.format || null,
+      episodes: media.episodes || null,
+      duration: media.duration || null,
+      status: media.status || 'UNKNOWN',
+      season: media.season || null,
+      seasonYear: media.seasonYear || null,
+      averageScore: media.averageScore || null,
+      popularity: media.popularity || null,
+      startDate: {
+        year: media.startDate?.year || null,
+        month: media.startDate?.month || null,
+        day: media.startDate?.day || null
+      },
+      genres: Array.isArray(media.genres) ? media.genres : []
+    };
+
+    return anime;
   } catch (error) {
     console.error("Error fetching anime details from AniList:", error);
     toast.error("Failed to fetch anime details from AniList. Please try again later.");
@@ -351,7 +383,7 @@ export const importAniListAnimeToDatabase = async (anilistAnime: AniListAnime): 
         rating: normalizedRating,
         release_year: releaseYear,
         is_trending: false,
-        is_popular: anilistAnime.popularity > 5000, // Arbitrary threshold
+        is_popular: anilistAnime.popularity ? anilistAnime.popularity > 5000 : false, // Arbitrary threshold
         is_custom: false,
         type: animeType,
         status: animeStatus,
@@ -429,7 +461,7 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       return [];
     }
 
-    // Transform AniList data with explicit types and null safety
+    // Transform AniList data with explicit types and null safety - using a for loop instead of map
     const results: AniListMedia[] = [];
     
     for (const item of data.Page.media) {
@@ -440,13 +472,13 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       const coverImage = getSafeCoverImage(item.coverImage);
       const startDate = getSafeStartDate(item.startDate);
       
-      const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
+      const voteAverage = item.averageScore ? (item.averageScore / 10) : null;
       
       let releaseDate: string | null = null;
       if (startDate.year) {
         const month = startDate.month || 1;
         const day = startDate.day || 1;
-        releaseDate = `${startDate.year}-${month}-${day}`;
+        releaseDate = `${startDate.year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
       }
 
       // Create a properly typed AniListMedia object
