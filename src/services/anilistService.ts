@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -298,9 +297,9 @@ export const getAniListAnimeDetails = async (anilistId: number): Promise<AniList
     const anime: AniListAnime = {
       id: media.id,
       title: {
-        romaji: media.title.romaji || '',
-        english: media.title.english || null,
-        native: media.title.native || null
+        romaji: media.title?.romaji || '',
+        english: media.title?.english || null,
+        native: media.title?.native || null
       },
       description: media.description || null,
       coverImage: {
