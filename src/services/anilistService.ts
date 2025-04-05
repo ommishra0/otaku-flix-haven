@@ -53,33 +53,33 @@ export interface AniListAnime {
   genres: string[];
 }
 
-// Using a simpler, flattened structure for the media type
+// Simplified structure for UI display purposes
 export interface AniListMedia {
   id: number;
   title: {
-    english?: string;
-    romaji?: string;
-    native?: string;
+    english: string | null;
+    romaji: string | null;
+    native: string | null;
   };
   coverImage: {
-    large?: string;
-    medium?: string;
+    large: string | null;
+    medium: string | null;
   };
-  bannerImage?: string;
-  description?: string;
-  format?: string;
+  bannerImage: string | null;
+  description: string | null;
+  format: string | null;
   startDate: {
-    year?: number;
-    month?: number;
-    day?: number;
+    year: number | null;
+    month: number | null;
+    day: number | null;
   };
-  episodes?: number;
-  averageScore?: number;
-  popularity?: number;
-  // These are the UI-specific properties
-  poster_path?: string;
-  vote_average?: number;
-  release_date?: string;
+  episodes: number | null;
+  averageScore: number | null;
+  popularity: number | null;
+  // UI-specific properties
+  poster_path: string | null;
+  vote_average: number | null;
+  release_date: string | null;
 }
 
 // Mapping AniList status to our database status
@@ -96,6 +96,32 @@ const mapAniListStatus = (status: string): string => {
     default:
       return 'Unknown';
   }
+};
+
+// Helper function to safely get title from AniList response
+const getSafeTitle = (animeTitle: any): { english: string | null; romaji: string | null; native: string | null; } => {
+  return {
+    english: animeTitle?.english || null,
+    romaji: animeTitle?.romaji || null,
+    native: animeTitle?.native || null
+  };
+};
+
+// Helper function to safely get cover image from AniList response
+const getSafeCoverImage = (coverImage: any): { large: string | null; medium: string | null; } => {
+  return {
+    large: coverImage?.large || null,
+    medium: coverImage?.medium || null
+  };
+};
+
+// Helper function to safely get start date from AniList response
+const getSafeStartDate = (startDate: any): { year: number | null; month: number | null; day: number | null; } => {
+  return {
+    year: startDate?.year || null,
+    month: startDate?.month || null,
+    day: startDate?.day || null
+  };
 };
 
 // Function to search anime on AniList
@@ -143,6 +169,10 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       }),
     });
 
+    if (!response.ok) {
+      throw new Error(`AniList API responded with status: ${response.status}`);
+    }
+
     const { data } = await response.json();
     
     if (!data || !data.Page || !data.Page.media) {
@@ -150,54 +180,39 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       return [];
     }
 
-    // Transform AniList data with explicit types
+    // Transform AniList data with explicit types and null safety
     return data.Page.media.map((item: any): AniListMedia => {
-      // Using optional chaining and nullish coalescing for safety
-      const title = {
-        english: item.title?.english || '',
-        romaji: item.title?.romaji || '',
-        native: item.title?.native || '',
-      };
+      // Get safe versions of nested objects
+      const title = getSafeTitle(item?.title);
+      const coverImage = getSafeCoverImage(item?.coverImage);
+      const startDate = getSafeStartDate(item?.startDate);
       
-      const coverImage = {
-        large: item.coverImage?.large || '',
-        medium: item.coverImage?.medium || '',
-      };
-      
-      const startDate = {
-        year: item.startDate?.year || undefined,
-        month: item.startDate?.month || undefined,
-        day: item.startDate?.day || undefined,
-      };
-
-      const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
+      const voteAverage = item?.averageScore ? (item.averageScore / 10) : 0;
       
       const releaseDate = startDate.year 
         ? `${startDate.year}-${startDate.month || 1}-${startDate.day || 1}` 
-        : '';
+        : null;
 
-      // Creating a new object with explicit properties to avoid deep type inference
-      const aniListMedia: AniListMedia = {
-        id: item.id || 0,
-        title,
-        coverImage,
-        poster_path: coverImage.large || '',
-        bannerImage: item.bannerImage || '',
-        description: item.description || '',
-        format: item.format || '',
-        startDate,
-        episodes: item.episodes || 0,
-        averageScore: item.averageScore || 0,
-        popularity: item.popularity || 0,
+      // Return a properly typed AniListMedia object
+      return {
+        id: item?.id || 0,
+        title: title,
+        coverImage: coverImage,
+        bannerImage: item?.bannerImage || null,
+        description: item?.description || null,
+        format: item?.format || null,
+        startDate: startDate,
+        episodes: item?.episodes || null,
+        averageScore: item?.averageScore || null,
+        popularity: item?.popularity || null,
+        poster_path: coverImage.large || null,
         vote_average: voteAverage,
         release_date: releaseDate
       };
-
-      return aniListMedia;
     });
   } catch (error) {
     console.error("Error searching anime on AniList:", error);
-    toast.error("Failed to search anime on AniList");
+    toast.error("Failed to fetch data from AniList. Please check your network connection and try again.");
     return [];
   }
 };
@@ -250,6 +265,10 @@ export const getAniListAnimeDetails = async (anilistId: number): Promise<AniList
       }),
     });
 
+    if (!response.ok) {
+      throw new Error(`AniList API responded with status: ${response.status}`);
+    }
+
     const { data } = await response.json();
     
     if (!data || !data.Media) {
@@ -260,7 +279,7 @@ export const getAniListAnimeDetails = async (anilistId: number): Promise<AniList
     return data.Media;
   } catch (error) {
     console.error("Error fetching anime details from AniList:", error);
-    toast.error("Failed to fetch anime details from AniList");
+    toast.error("Failed to fetch anime details from AniList. Please try again later.");
     return null;
   }
 };
@@ -383,6 +402,10 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       }),
     });
 
+    if (!response.ok) {
+      throw new Error(`AniList API responded with status: ${response.status}`);
+    }
+
     const { data } = await response.json();
     
     if (!data || !data.Page || !data.Page.media) {
@@ -390,54 +413,39 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       return [];
     }
 
-    // Transform AniList data with explicit types to avoid deep inference
+    // Transform AniList data with explicit types and null safety
     return data.Page.media.map((item: any): AniListMedia => {
-      // Using explicit type construction to avoid type inference issues
-      const title = {
-        english: item.title?.english || '',
-        romaji: item.title?.romaji || '',
-        native: item.title?.native || '',
-      };
+      // Get safe versions of nested objects
+      const title = getSafeTitle(item?.title);
+      const coverImage = getSafeCoverImage(item?.coverImage);
+      const startDate = getSafeStartDate(item?.startDate);
       
-      const coverImage = {
-        large: item.coverImage?.large || '',
-        medium: item.coverImage?.medium || '',
-      };
-      
-      const startDate = {
-        year: item.startDate?.year || undefined,
-        month: item.startDate?.month || undefined,
-        day: item.startDate?.day || undefined,
-      };
-
-      const voteAverage = item.averageScore ? (item.averageScore / 10) : 0;
+      const voteAverage = item?.averageScore ? (item.averageScore / 10) : 0;
       
       const releaseDate = startDate.year 
         ? `${startDate.year}-${startDate.month || 1}-${startDate.day || 1}` 
-        : '';
+        : null;
 
-      // Create a new object with explicit properties
-      const media: AniListMedia = {
-        id: item.id || 0,
-        title,
-        coverImage,
-        poster_path: coverImage.large || '',
-        bannerImage: item.bannerImage || '',
-        description: item.description || '',
-        format: item.format || '',
-        startDate,
-        episodes: item.episodes || 0,
-        averageScore: item.averageScore || 0,
-        popularity: item.popularity || 0,
+      // Return a properly typed AniListMedia object
+      return {
+        id: item?.id || 0,
+        title: title,
+        coverImage: coverImage,
+        bannerImage: item?.bannerImage || null,
+        description: item?.description || null,
+        format: item?.format || null,
+        startDate: startDate,
+        episodes: item?.episodes || null,
+        averageScore: item?.averageScore || null,
+        popularity: item?.popularity || null,
+        poster_path: coverImage.large || null,
         vote_average: voteAverage,
         release_date: releaseDate
       };
-
-      return media;
     });
   } catch (error) {
     console.error("Error fetching trending anime from AniList:", error);
-    toast.error("Failed to fetch trending anime from AniList");
+    toast.error("Failed to fetch trending anime from AniList. Please check your connection and try again.");
     return [];
   }
 };
@@ -460,6 +468,12 @@ export const bulkImportTrendingAniListAnime = async (): Promise<number> => {
     
     for (const animeMedia of trendingAnime) {
       try {
+        if (!animeMedia.id) {
+          console.error("Anime media missing ID, skipping");
+          failures++;
+          continue;
+        }
+        
         const animeDetails = await getAniListAnimeDetails(animeMedia.id);
       
         if (!animeDetails) {
