@@ -7,7 +7,7 @@ import { fetchTrendingAnime, fetchPopularAnime, Anime } from '@/services/animeSe
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
 import MainLayout from '@/components/layout/MainLayout';
-import { getTrendingAniListAnime } from '@/services/anilistService';
+import { getTrendingAniListAnime, AniListMedia } from '@/services/anilistService';
 
 const Index = () => {
   const isMobile = useIsMobile();
@@ -35,13 +35,13 @@ const Index = () => {
           // Use these for display even though they're not in the database yet
           if (anilistTrending.length > 0) {
             // Convert AniList media to a format compatible with our AnimeCardProps
-            const anilistCards = anilistTrending.map(anime => ({
+            const anilistCards = anilistTrending.map((anime: AniListMedia) => ({
               id: anime.id,
               title: anime.title.english || anime.title.romaji || 'Unknown',
-              image: anime.coverImage.large || anime.coverImage.medium || '/placeholder.svg',
+              image: anime.coverImage?.large || anime.coverImage?.medium || '/placeholder.svg',
               rating: anime.averageScore ? anime.averageScore / 20 : undefined,
               type: anime.format || undefined,
-              year: anime.startDate.year || undefined
+              year: anime.startDate?.year || undefined
             }));
             
             setTrendingAnime(anilistCards);
@@ -49,12 +49,12 @@ const Index = () => {
             // If we have AniList data but no database data, use AniList for featured too
             if (anilistTrending.length > 0) {
               // Create a minimal anime object from AniList data for the featured section
-              const featuredFromAniList = anilistTrending.slice(0, 3).map(anime => ({
+              const featuredFromAniList = anilistTrending.slice(0, 3).map((anime: AniListMedia) => ({
                 id: anime.id.toString(),
                 title: anime.title.english || anime.title.romaji || 'Unknown',
                 description: anime.description || '',
-                image_url: anime.coverImage.large || anime.coverImage.medium || '/placeholder.svg',
-                banner_image_url: anime.bannerImage || anime.coverImage.large || '',
+                image_url: anime.coverImage?.large || anime.coverImage?.medium || '/placeholder.svg',
+                banner_image_url: anime.bannerImage || anime.coverImage?.large || '',
                 rating: anime.averageScore ? anime.averageScore / 20 : 0,
               } as Anime));
               

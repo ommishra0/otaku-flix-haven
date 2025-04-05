@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -76,6 +77,7 @@ export interface AniListAnime {
   };
 }
 
+// Update the AniListMedia interface to include all required properties
 export interface AniListMedia {
   id: number;
   title: {
@@ -87,6 +89,14 @@ export interface AniListMedia {
     year: number;
   };
   episodes: number;
+  averageScore: number;
+  format: string;
+  description: string;
+  bannerImage: string;
+  coverImage: {
+    large: string;
+    medium: string;
+  };
   vote_average: number;
   poster_path: string;
 }
@@ -109,9 +119,13 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
               }
               episodes
               averageScore
+              format
+              description
               coverImage {
                 large
+                medium
               }
+              bannerImage
             }
           }
         }
@@ -142,8 +156,13 @@ export const searchAniListAnime = async (query: string): Promise<AniListMedia[]>
       title: item.title,
       startDate: item.startDate,
       episodes: item.episodes,
+      averageScore: item.averageScore,
+      format: item.format,
+      description: item.description,
+      coverImage: item.coverImage,
+      bannerImage: item.bannerImage,
       vote_average: item.averageScore,
-      poster_path: item.coverImage.large,
+      poster_path: item.coverImage?.large,
     }));
 
     return media;
@@ -171,9 +190,13 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
               }
               episodes
               averageScore
+              format
+              description
               coverImage {
                 large
+                medium
               }
+              bannerImage
             }
           }
         }
@@ -201,8 +224,13 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
       title: item.title,
       startDate: item.startDate,
       episodes: item.episodes,
+      averageScore: item.averageScore,
+      format: item.format,
+      description: item.description,
+      coverImage: item.coverImage,
+      bannerImage: item.bannerImage,
       vote_average: item.averageScore,
-      poster_path: item.coverImage.large,
+      poster_path: item.coverImage?.large,
     }));
 
     return media;
