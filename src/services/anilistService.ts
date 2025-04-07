@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -77,7 +76,6 @@ export interface AniListAnime {
   };
 }
 
-// Update the AniListMedia interface to include all required properties
 export interface AniListMedia {
   id: number;
   title: {
@@ -240,7 +238,6 @@ export const getTrendingAniListAnime = async (): Promise<AniListMedia[]> => {
   }
 };
 
-// Fix the function with the excessive type instantiation error by explicitly typing the return value
 export const getAniListAnimeDetails = async (id: number): Promise<AniListAnime | null> => {
   try {
     const query = `
@@ -329,16 +326,13 @@ export const getAniListAnimeDetails = async (id: number): Promise<AniListAnime |
 
     const data = await response.json();
     
-    // Check if we got valid data
     if (data.errors || !data.data || !data.data.Media) {
       console.error('AniList API Error:', data.errors || 'No data returned');
       return null;
     }
 
-    // Extract the media data
     const media = data.data.Media;
 
-    // Create a properly typed object to avoid excessive type instantiation
     const animeDetails: AniListAnime = {
       id: media.id,
       title: {
@@ -413,10 +407,8 @@ export const getAniListAnimeDetails = async (id: number): Promise<AniListAnime |
   }
 };
 
-// Make sure the importAniListAnimeToDatabase function properly uses the anilist_id field
 export const importAniListAnimeToDatabase = async (anime: AniListAnime): Promise<boolean> => {
   try {
-    // Check if anime already exists by anilist_id
     const { data: existingAnime, error: checkError } = await supabase
       .from('anime')
       .select('id')
@@ -428,7 +420,8 @@ export const importAniListAnimeToDatabase = async (anime: AniListAnime): Promise
       return false;
     }
 
-    // If anime already exists, update it
+    let normalizedStatus = mapAniListStatusToDatabase(anime.status);
+    
     if (existingAnime) {
       const { error: updateError } = await supabase
         .from('anime')
@@ -437,12 +430,12 @@ export const importAniListAnimeToDatabase = async (anime: AniListAnime): Promise
           description: anime.description ? anime.description.replace(/<[^>]*>/g, '') : null,
           image_url: anime.coverImage.large || anime.coverImage.medium,
           banner_image_url: anime.bannerImage,
-          rating: anime.averageScore ? anime.averageScore / 20 : null, // Convert from 100-scale to 5-scale
+          rating: anime.averageScore ? anime.averageScore / 20 : null,
           release_year: anime.startDate.year,
-          status: anime.status,
+          status: normalizedStatus,
           studio: anime.studios.edges.length > 0 ? anime.studios.edges[0].node.name : null,
           type: anime.format,
-          is_trending: true, // Assume import from AniList is trending
+          is_trending: true,
           updated_at: new Date().toISOString(),
           anilist_id: anime.id
         })
@@ -456,7 +449,6 @@ export const importAniListAnimeToDatabase = async (anime: AniListAnime): Promise
       return true;
     }
 
-    // Insert new anime
     const { data: insertedAnime, error: insertError } = await supabase
       .from('anime')
       .insert({
@@ -464,12 +456,12 @@ export const importAniListAnimeToDatabase = async (anime: AniListAnime): Promise
         description: anime.description ? anime.description.replace(/<[^>]*>/g, '') : null,
         image_url: anime.coverImage.large || anime.coverImage.medium,
         banner_image_url: anime.bannerImage,
-        rating: anime.averageScore ? anime.averageScore / 20 : null, // Convert from 100-scale to 5-scale
+        rating: anime.averageScore ? anime.averageScore / 20 : null,
         release_year: anime.startDate.year,
-        status: anime.status,
+        status: normalizedStatus,
         studio: anime.studios.edges.length > 0 ? anime.studios.edges[0].node.name : null,
         type: anime.format,
-        is_trending: true, // Assume import from AniList is trending
+        is_trending: true,
         is_popular: false,
         is_featured: false,
         anilist_id: anime.id
@@ -490,7 +482,28 @@ export const importAniListAnimeToDatabase = async (anime: AniListAnime): Promise
   }
 };
 
-// Update the bulk import function to properly use anilist_id
+function mapAniListStatusToDatabase(anilistStatus: string): string {
+  switch (anilistStatus?.toLowerCase()) {
+    case 'finished':
+    case 'completed':
+      return 'Completed';
+    case 'releasing':
+    case 'current':
+    case 'ongoing':
+      return 'Ongoing';
+    case 'not_yet_released':
+    case 'upcoming':
+      return 'Not Yet Aired';
+    case 'cancelled':
+      return 'Cancelled';
+    case 'hiatus':
+      return 'On Hiatus';
+    default:
+      console.log(`Unknown status: "${anilistStatus}", defaulting to "Ongoing"`);
+      return 'Ongoing';
+  }
+}
+
 export const bulkImportTrendingAniListAnime = async (): Promise<number> => {
   try {
     const trendingAnime = await getTrendingAniListAnime();

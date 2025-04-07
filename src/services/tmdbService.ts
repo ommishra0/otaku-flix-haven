@@ -279,6 +279,14 @@ export const addCustomAnime = async (animeData: {
       return null;
     }
     
+    // Validate the status to ensure it matches the constraint
+    // Valid values appear to be: 'Ongoing', 'Completed', 'Not Yet Aired', 'Cancelled', 'On Hiatus'
+    const validStatuses = ['Ongoing', 'Completed', 'Not Yet Aired', 'Cancelled', 'On Hiatus'];
+    const defaultStatus = 'Ongoing';
+    const status = animeData.status && validStatuses.includes(animeData.status) 
+      ? animeData.status 
+      : defaultStatus;
+      
     // Insert custom anime into the database
     const { data, error } = await supabase
       .from('anime')
@@ -292,7 +300,7 @@ export const addCustomAnime = async (animeData: {
         is_popular: false,
         is_custom: true,
         type: animeData.type || "TV Series",
-        status: animeData.status || "Ongoing"
+        status: status
       })
       .select('id, title')
       .single();
