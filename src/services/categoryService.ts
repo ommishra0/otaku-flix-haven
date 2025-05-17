@@ -14,11 +14,10 @@ export interface Category {
 // Fetch all categories
 export const fetchAllCategories = async (): Promise<Category[]> => {
   try {
-    // Use explicit type casting to handle the newly created table
     const { data, error } = await supabase
       .from('categories')
       .select('*')
-      .order('name', { ascending: true }) as any;
+      .order('name', { ascending: true });
     
     if (error) throw error;
     
@@ -37,7 +36,7 @@ export const fetchCategoryById = async (id: string): Promise<Category | null> =>
       .from('categories')
       .select('*')
       .eq('id', id)
-      .single() as any;
+      .single();
     
     if (error) throw error;
     
@@ -62,7 +61,7 @@ export const createCategory = async (
         image_url: category.image_url
       })
       .select('id')
-      .single() as any;
+      .single();
     
     if (error) throw error;
     
@@ -84,7 +83,7 @@ export const updateCategory = async (
     const { error } = await supabase
       .from('categories')
       .update(category)
-      .eq('id', id) as any;
+      .eq('id', id);
     
     if (error) throw error;
     
@@ -103,7 +102,7 @@ export const deleteCategory = async (id: string): Promise<boolean> => {
     const { error } = await supabase
       .from('categories')
       .delete()
-      .eq('id', id) as any;
+      .eq('id', id);
     
     if (error) throw error;
     
@@ -127,7 +126,7 @@ export const addAnimeToCategory = async (
       .insert({
         anime_id: animeId,
         category_id: categoryId
-      }) as any;
+      });
     
     if (error) throw error;
     
@@ -152,7 +151,7 @@ export const removeAnimeFromCategory = async (
       .match({
         anime_id: animeId,
         category_id: categoryId
-      }) as any;
+      });
     
     if (error) throw error;
     
@@ -176,7 +175,7 @@ export const getAnimeByCategory = async (categoryId: string): Promise<any[]> => 
           id, title, image_url, description, rating, release_year, type, status
         )
       `)
-      .eq('category_id', categoryId) as any;
+      .eq('category_id', categoryId);
     
     if (error) throw error;
     
@@ -198,7 +197,7 @@ export const getCategoriesForAnime = async (animeId: string): Promise<Category[]
         category_id,
         categories (*)
       `)
-      .eq('anime_id', animeId) as any;
+      .eq('anime_id', animeId);
     
     if (error) throw error;
     

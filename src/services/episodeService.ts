@@ -1,6 +1,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 export interface Comment {
   id: string;
@@ -71,11 +71,7 @@ export const fetchAnimeAndEpisode = async (animeId: string, episodeId: string) =
     return { anime, episode: episodeData, prevEpisode, nextEpisode };
   } catch (error) {
     console.error('Error fetching anime and episode:', error);
-    toast({
-      title: "Error",
-      description: "Failed to load anime data",
-      variant: "destructive"
-    });
+    toast.error("Failed to load anime data");
     return { anime: null, episode: null, prevEpisode: null, nextEpisode: null };
   }
 };
@@ -114,22 +110,14 @@ export const fetchComments = async (episodeId: string) => {
     return formattedComments;
   } catch (error) {
     console.error('Error fetching comments:', error);
-    toast({
-      title: "Error",
-      description: "Failed to load comments",
-      variant: "destructive"
-    });
+    toast.error("Failed to load comments");
     return [];
   }
 };
 
 export const addComment = async (userId: string | null, episodeId: string, content: string) => {
   if (!userId) {
-    toast({
-      title: "Authentication required",
-      description: "You must be logged in to comment",
-      variant: "destructive"
-    });
+    toast.error("You must be logged in to comment");
     return null;
   }
 
@@ -169,11 +157,7 @@ export const addComment = async (userId: string | null, episodeId: string, conte
     return formattedComment;
   } catch (error) {
     console.error('Error adding comment:', error);
-    toast({
-      title: "Error",
-      description: "Failed to post comment",
-      variant: "destructive"
-    });
+    toast.error("Failed to post comment");
     return null;
   }
 };
