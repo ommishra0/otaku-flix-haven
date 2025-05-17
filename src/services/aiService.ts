@@ -38,28 +38,28 @@ export const getPersonalizedRecommendations = async (userId: string): Promise<an
       return trendingAnime || [];
     }
     
-    // Get genre IDs from watched anime
-    const { data: animeGenres, error: genresError } = await supabase
-      .from('anime_genres')
-      .select('genre_id')
+    // Get category IDs from watched anime
+    const { data: animeCategories, error: categoriesError } = await supabase
+      .from('anime_categories')
+      .select('category_id')
       .in('anime_id', watchedAnimeIds);
     
-    if (genresError) throw genresError;
+    if (categoriesError) throw categoriesError;
     
-    // Count genre occurrences to find user preferences
-    const genreCounts: Record<string, number> = {};
-    animeGenres.forEach(item => {
-      genreCounts[item.genre_id] = (genreCounts[item.genre_id] || 0) + 1;
+    // Count category occurrences to find user preferences
+    const categoryCounts: Record<string, number> = {};
+    animeCategories.forEach(item => {
+      categoryCounts[item.category_id] = (categoryCounts[item.category_id] || 0) + 1;
     });
     
-    // Sort genres by count and take top 3
-    const preferredGenres = Object.entries(genreCounts)
+    // Sort categories by count and take top 3
+    const preferredCategories = Object.entries(categoryCounts)
       .sort(([, countA], [, countB]) => countB - countA)
       .slice(0, 3)
-      .map(([genreId]) => genreId);
+      .map(([categoryId]) => categoryId);
     
-    if (preferredGenres.length === 0) {
-      // If no genres found, return popular anime
+    if (preferredCategories.length === 0) {
+      // If no categories found, return popular anime
       const { data: popularAnime, error: popularError } = await supabase
         .from('anime')
         .select('*')
@@ -70,15 +70,15 @@ export const getPersonalizedRecommendations = async (userId: string): Promise<an
       return popularAnime || [];
     }
     
-    // Get recommendations based on preferred genres, excluding already watched anime
+    // Get recommendations based on preferred categories, excluding already watched anime
     const { data: recommendations, error: recommendationsError } = await supabase
-      .from('anime_genres')
+      .from('anime_categories')
       .select(`
         anime_id,
         anime:anime_id (*)
       `)
-      .in('genre_id', preferredGenres)
-      .not('anime_id', 'in', `(${watchedAnimeIds.join(',')})`)
+      .in('category_id', preferredCategories)
+      .not('anime_id', 'in', watchedAnimeIds.length > 0 ? watchedAnimeIds : [''])
       .limit(30);
     
     if (recommendationsError) throw recommendationsError;
@@ -107,16 +107,16 @@ export const getPersonalizedRecommendations = async (userId: string): Promise<an
 // Function to get similar anime based on an anime ID
 export const getSimilarAnime = async (animeId: string): Promise<any[]> => {
   try {
-    // Get genres of the given anime
-    const { data: animeGenres, error: genresError } = await supabase
-      .from('anime_genres')
-      .select('genre_id')
+    // Get categories of the given anime
+    const { data: animeCategories, error: categoriesError } = await supabase
+      .from('anime_categories')
+      .select('category_id')
       .eq('anime_id', animeId);
     
-    if (genresError) throw genresError;
+    if (categoriesError) throw categoriesError;
     
-    if (animeGenres.length === 0) {
-      // If no genres found, return trending anime
+    if (!animeCategories || animeCategories.length === 0) {
+      // If no categories found, return trending anime
       const { data: trendingAnime, error: trendingError } = await supabase
         .from('anime')
         .select('*')
@@ -128,23 +128,23 @@ export const getSimilarAnime = async (animeId: string): Promise<any[]> => {
       return trendingAnime || [];
     }
     
-    // Get genre IDs
-    const genreIds = animeGenres.map(item => item.genre_id);
+    // Get category IDs
+    const categoryIds = animeCategories.map(item => item.category_id);
     
-    // Get anime with similar genres, excluding the current anime
+    // Get anime with similar categories, excluding the current anime
     const { data: similarAnime, error: similarError } = await supabase
-      .from('anime_genres')
+      .from('anime_categories')
       .select(`
         anime_id,
         anime:anime_id (*)
       `)
-      .in('genre_id', genreIds)
+      .in('category_id', categoryIds)
       .neq('anime_id', animeId)
       .limit(20);
     
     if (similarError) throw similarError;
     
-    // Count occurrences of each anime to rank by genre overlap
+    // Count occurrences of each anime to rank by category overlap
     const animeCounts: Record<string, { count: number; anime: any }> = {};
     
     similarAnime.forEach(item => {
@@ -157,10 +157,10 @@ export const getSimilarAnime = async (animeId: string): Promise<any[]> => {
       animeCounts[item.anime.id].count += 1;
     });
     
-    // Sort by genre overlap count (descending) and then by rating (descending)
+    // Sort by category overlap count (descending) and then by rating (descending)
     const sortedAnime = Object.values(animeCounts)
       .sort((a, b) => {
-        // First sort by genre overlap count
+        // First sort by category overlap count
         if (b.count !== a.count) {
           return b.count - a.count;
         }
@@ -198,15 +198,15 @@ export const getAnimeByMood = async (mood: string): Promise<any[]> => {
       case 'horror':
       case 'mystery':
       case 'thriller':
-        // For genre-based moods, we need to join with genres
-        const { data: genreData, error: genreError } = await supabase
-          .from('genres')
+        // For category-based moods, we need to find categories with similar names
+        const { data: categoryData, error: categoryError } = await supabase
+          .from('categories')
           .select('id')
           .ilike('name', `%${mood}%`)
           .single();
         
-        if (genreError || !genreData) {
-          // If genre not found, return popular anime
+        if (categoryError || !categoryData) {
+          // If category not found, return popular anime
           const { data: popularAnime, error: popularError } = await supabase
             .from('anime')
             .select('*')
@@ -217,18 +217,18 @@ export const getAnimeByMood = async (mood: string): Promise<any[]> => {
           return popularAnime || [];
         }
         
-        // Get anime with this genre
-        const { data: animeWithGenre, error: animeGenreError } = await supabase
-          .from('anime_genres')
+        // Get anime with this category
+        const { data: animeWithCategory, error: animeCategoryError } = await supabase
+          .from('anime_categories')
           .select(`
             anime:anime_id (*)
           `)
-          .eq('genre_id', genreData.id)
+          .eq('category_id', categoryData.id)
           .limit(10);
         
-        if (animeGenreError) throw animeGenreError;
+        if (animeCategoryError) throw animeCategoryError;
         
-        return animeWithGenre.map(item => item.anime) || [];
+        return animeWithCategory.map(item => item.anime) || [];
         
       case 'happy':
       case 'uplifting':
